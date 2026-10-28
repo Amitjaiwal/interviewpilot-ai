@@ -35,6 +35,7 @@ export class WindowManager {
       minWidth: MIN_SIZE.width,
       minHeight: MIN_SIZE.height,
       frame: false,
+      skipTaskbar: true,
       alwaysOnTop: overlay.alwaysOnTop,
       show: false,
       backgroundColor: '#0f1115',
@@ -50,6 +51,7 @@ export class WindowManager {
         backgroundThrottling: false,
       },
     });
+    win.setSkipTaskbar(true);
     if (overlay.alwaysOnTop) win.setAlwaysOnTop(true, 'floating');
     win.setOpacity(overlay.opacity);
     this.contentProtection = overlay.contentProtection;
@@ -67,6 +69,7 @@ export class WindowManager {
     win.on('always-on-top-changed', emit);
     win.on('show', () => {
       this.log.info('window', 'shown');
+      win.setSkipTaskbar(true);
       // On Windows, showing a hidden window (the first show included) resets its
       // display affinity, so protection applied while hidden would be lost.
       this.applyContentProtection(win, this.contentProtection, 'show');

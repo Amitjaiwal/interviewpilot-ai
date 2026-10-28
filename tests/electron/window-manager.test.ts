@@ -9,11 +9,15 @@ vi.mock('electron', async () => {
   class BrowserWindow extends EventEmitter {
     visible = false;
     excludedFromCapture = false;
+    skippedFromTaskbar = false;
     readonly webContents = Object.assign(new EventEmitter(), {
       setWindowOpenHandler: () => undefined,
       send: () => undefined,
     });
     setAlwaysOnTop(): void {}
+    setSkipTaskbar(value: boolean): void {
+      this.skippedFromTaskbar = value;
+    }
     setOpacity(): void {}
     setContentProtection(value: boolean): void {
       this.excludedFromCapture = value;
@@ -66,6 +70,7 @@ vi.mock('electron', async () => {
 
 interface FakeWindow {
   excludedFromCapture: boolean;
+  skippedFromTaskbar: boolean;
   emit(event: string): boolean;
   hide(): void;
   showInactive(): void;
@@ -86,6 +91,18 @@ function start(contentProtection: boolean): { windows: WindowManager; win: FakeW
 describe('WindowManager content protection', () => {
   it('applies the saved preference once the window first appears', () => {
     expect(start(true).win.excludedFromCapture).toBe(true);
+  });
+
+  describe('WindowManager taskbar behavior', () => {
+    it('keeps the window excluded from the taskbar when shown', () => {
+      const { windows, win } = start(false);
+      expect(win.skippedFromTaskbar).toBe(true);
+
+      win.hide();
+      windows.toggleVisibility();
+
+      expect(win.skippedFromTaskbar).toBe(true);
+    });
   });
 
   it('leaves capture allowed when the saved preference is off', () => {
