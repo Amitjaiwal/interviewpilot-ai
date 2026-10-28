@@ -1,0 +1,150 @@
+<section class="panel transcript" aria-label="Transcript">
+  <div class="panel-head">
+    <h2>Transcript</h2>
+    @if (engineLabel(); as label) {
+      <span class="engine" [class.err]="transcript.status().engine === 'error'">
+        @if (transcript.status().engine === 'starting' || transcript.status().queue > 0) {
+          <span class="spinner"></span>
+        }
+        {{ label }}
+      </span>
+    }
+    <span class="spacer"></span>
+    <button type="button" class="btn small ghost" (click)="copyTranscript()" [disabled]="transcript.finals().length === 0">
+      {{ copiedTranscript() ? 'Copied' : 'Copy' }}
+    </button>
+    <button type="button" class="btn small ghost" (click)="clearTranscript()" [disabled]="transcript.segments().length === 0">
+      Clear
+    </button>
+  </div>
+
+  <div class="controls row">
+    @switch (transcript.capture()) {
+      @case ('idle') {
+        <button type="button" class="btn live start" (click)="start()" [disabled]="transcript.starting()">
+          @if (transcript.starting()) {
+            <span class="spinner"></span>
+          } @else {
+            <svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="5" /></svg>
+          }
+          Start
+        </button>
+        <div class="segmented" role="group" aria-label="Audio sources">
+          <button type="button" [class.on]="sources().mic" [attr.aria-pressed]="sources().mic" (click)="toggleSource('mic')">Mic</button>
+          <button type="button" [class.on]="sources().system" [attr.aria-pressed]="sources().system" (click)="toggleSource('system')">
+            System audio
+          </button>
+        </div>
+      }
+      @case ('recording') {
+        <button type="button" class="btn" (click)="transcript.pause()">Pause</button>
+        <button type="button" class="btn danger" (click)="transcript.stop()">Stop</button>
+      }
+      @case ('paused') {
+        <button type="button" class="btn live" (click)="transcript.resume()">Resume</button>
+        <button type="button" class="btn danger" (click)="transcript.stop()">Stop</button>
+      }
+    }
+    @if (transcript.capture() !== 'idle') {
+      @for (source of transcript.activeSources(); track source) {
+        <span class="meter" [title]="source === 'mic' ? 'Microphone level' : 'System audio level'">
+          {{ source === 'mic' ? 'Mic' : 'System' }}
+          <span class="bar"><span [style.width.%]="meter(source)"></span></span>
+        </span>
+      }
+    }
+  </div>
+
+  @if (transcript.error(); as err) {
+    <div class="error-box msg">
+      {{ err }}
+      <button type="button" class="btn small ghost dismiss" (click)="transcript.error.set(null)" aria-label="Dismiss">×</button>
+    </div>
+  }
+  @if (transcript.status().engine === 'error' && transcript.status().error; as engineErr) {
+    <div class="error-box msg">{{ engineErr }}</div>
+  }
+
+  <div class="panel-body" #scroller>
+    @for (seg of transcript.segments(); track seg.id) {
+      <button
+        type="button"
+        class="seg"
+        [class.partial]="seg.partial"
+        [class.question]="seg.question"
+        [class.selected]="transcript.selected().has(seg.id)"
+        [disabled]="seg.partial"
+        (click)="transcript.toggleSelected(seg.id)">
+        <span class="who" [class.sys]="seg.source === 'system'">{{ seg.source === 'mic' ? 'You' : 'Meeting' }}</span>
+        <span class="text">{{ seg.text }}</span>
+      </button>
+    } @empty {
+      <div class="empty">
+        @if (transcript.capture() === 'idle') {
+          Press <strong>Start</strong> to transcribe your microphone or system audio. Speech is processed locally by whisper.cpp.
+        } @else {
+          Listening… speak and text will appear here.
+        }
+      </div>
+    }
+  </div>
+</section>
+
+<section class="panel answer" aria-label="AI response">
+  <div class="panel-head">
+    <h2>AI response</h2>
+    <span class="spacer"></span>
+    <div class="segmented" role="group" aria-label="Response length">
+      <button type="button" [class.on]="length() === 'short'" (click)="setLength('short')">Short</button>
+      <button type="button" [class.on]="length() === 'medium'" (click)="setLength('medium')">Medium</button>
+      <button type="button" [class.on]="length() === 'detailed'" (click)="setLength('detailed')">Detailed</button>
+    </div>
+  </div>
+  <div class="ask">
+    <textarea
+      class="textarea"
+      rows="2"
+      placeholder="Type a question, or click transcript lines to select them (Ctrl+Enter to answer)"
+      [ngModel]="question()"
+      (ngModelChange)="onQuestionInput($event)"
+      (keydown)="onQuestionKey($event)"></textarea>
+    <div class="row">
+      <button type="button" class="btn primary" (click)="ask('answer')">Suggest answer</button>
+      <button type="button" class="btn" (click)="ask('explain')">Explain</button>
+      <button type="button" class="btn ghost" (click)="useLastQuestion()" [disabled]="transcript.finals().length === 0" title="Fill in the last detected question">
+        Last question
+      </button>
+      @if (transcript.selected().size > 0) {
+        <span class="small-text muted">{{ transcript.selected().size }} line(s) selected</span>
+      }
+    </div>
+    @if (askError(); as err) {
+      <div class="small-text err-text">{{ err }}</div>
+    }
+  </div>
+  <div class="panel-body">
+    <app-response-view
+      [stream]="stream()"
+      placeholder="Suggested answers and explanations stream here from your local Ollama model."
+      (regenerate)="regenerate()" />
+  </div>
+</section>
+
+@if (showConsent()) {
+  <div class="modal-backdrop">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="consent-title">
+      <h3 id="consent-title">Before capturing audio</h3>
+      <ul>
+        <li><strong>Mic</strong> captures your microphone. <strong>System audio</strong> captures everything your PC plays (for example the other side of a call).</li>
+        <li>Audio is transcribed on this computer by whisper.cpp. Nothing is sent to the internet.</li>
+        <li>Audio is not saved unless you turn on <em>Save audio</em> in Settings. Transcripts are kept in local history only while <em>Save history</em> is on.</li>
+        <li>A red <strong>REC</strong> indicator is shown whenever capture is active.</li>
+        <li>Only record conversations where everyone has agreed to it and where AI assistance is allowed.</li>
+      </ul>
+      <div class="row end">
+        <button type="button" class="btn" (click)="showConsent.set(false)">Cancel</button>
+        <button type="button" class="btn primary" (click)="acceptConsent()">I understand, start</button>
+      </div>
+    </div>
+  </div>
+}

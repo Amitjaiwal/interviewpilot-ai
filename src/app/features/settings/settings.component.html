@@ -1,0 +1,376 @@
+<div class="scroll">
+  @if (saved()) {
+    <div class="saved">Saved</div>
+  }
+
+  <!-- ------------------------------------------------------------ AI -->
+  <details open>
+    <summary>AI model</summary>
+    <div class="body">
+      <label class="field">
+        <span>Provider</span>
+        <select class="select" [ngModel]="s().ai.provider" (ngModelChange)="setProvider($event)">
+          <option value="local">Local (Ollama): private, works offline</option>
+          <option value="groq">Online (Groq): fastest, free tier, needs internet</option>
+        </select>
+      </label>
+      @if (ai.status(); as st) {
+        <div class="status" [class.ok]="st.reachable && !st.modelMissing" [class.bad]="!st.reachable || st.modelMissing">
+          <span class="dot"></span>
+          @if (st.reachable) {
+            @if (st.provider === 'groq') {
+              Connected to Groq · {{ st.models.length }} model(s)
+            } @else {
+              Connected to Ollama {{ st.version }} · {{ st.models.length }} model(s)
+            }
+            @if (st.activeModel) {
+              · using <strong>{{ st.activeModel }}</strong>
+            }
+          } @else {
+            Not connected
+          }
+          <span class="spacer"></span>
+          <button type="button" class="btn small ghost" (click)="ai.refreshStatus()" [disabled]="ai.checking()">
+            {{ ai.checking() ? 'Checking…' : 'Test' }}
+          </button>
+        </div>
+        @if (st.error) {
+          <div class="error-box">{{ st.error }}</div>
+        }
+      }
+      @if (s().ai.provider === 'groq') {
+        <div class="field">
+          <span>Groq API key <em class="faint">(free at console.groq.com → API Keys)</em></span>
+          @if (ai.status()?.apiKeySet) {
+            <div class="row nowrap">
+              <span>Key saved, encrypted on this computer</span>
+              <span class="spacer"></span>
+              <button type="button" class="btn small ghost" (click)="removeApiKey()" [disabled]="ai.checking()">Remove</button>
+            </div>
+          } @else {
+            <div class="row nowrap">
+              <input class="input" type="password" autocomplete="off" spellcheck="false" placeholder="gsk_…" [(ngModel)]="apiKeyDraft" />
+              <button type="button" class="btn" (click)="saveApiKey()" [disabled]="!apiKeyDraft.trim() || ai.checking()">Save</button>
+            </div>
+          }
+          @if (apiKeyError(); as e) {
+            <div class="error-box">{{ e }}</div>
+          }
+        </div>
+        <label class="field">
+          <span>Model</span>
+          <select class="select" [ngModel]="s().ai.groqModel" (ngModelChange)="setGroqModel($event)">
+            <option value="">Recommended (automatic)</option>
+            @for (m of ai.status()?.models ?? []; track m.name) {
+              <option [value]="m.name">{{ m.name }}</option>
+            }
+            @if (s().ai.groqModel && !(ai.status()?.models ?? []).length) {
+              <option [value]="s().ai.groqModel">{{ s().ai.groqModel }}</option>
+            }
+          </select>
+        </label>
+        <div class="warn-box">
+          Questions, recent transcript and your resume are sent to Groq to generate answers. If Groq cannot answer
+          (no internet, free-tier limit), your local model <strong>{{ s().ollama.model || 'first installed' }}</strong> answers instead.
+        </div>
+      } @else {
+        <label class="field">
+          <span>Endpoint</span>
+          <input class="input" [ngModel]="s().ollama.endpoint" (change)="setEndpoint($any($event.target).value)" spellcheck="false" />
+        </label>
+        @if (remoteEndpoint()) {
+          <div class="warn-box">This endpoint is not on this computer. Questions and transcript excerpts will be sent to it.</div>
+        }
+        <label class="field">
+          <span>Model <em class="faint">(also the fallback when Groq is selected)</em></span>
+          <select class="select" [ngModel]="s().ollama.model" (ngModelChange)="setModel($event)">
+            <option value="">Automatic (first installed)</option>
+            @for (m of ai.status()?.models ?? []; track m.name) {
+              <option [value]="m.name">{{ m.name }} · {{ m.parameterSize || formatSize(m.sizeBytes) }}</option>
+            }
+            @if (configuredModelMissing()) {
+              <option [value]="s().ollama.model">{{ s().ollama.model }} (not installed)</option>
+            }
+          </select>
+        </label>
+      }
+      <label class="field">
+        <span>Creativity (temperature {{ s().ollama.temperature.toFixed(1) }})</span>
+        <input type="range" min="0" max="1.2" step="0.1" [ngModel]="s().ollama.temperature" (change)="update({ ollama: { temperature: +$any($event.target).value } })" />
+      </label>
+      <label class="field">
+        <span>Default response length</span>
+        <select class="select" [ngModel]="s().ai.responseLength" (ngModelChange)="update({ ai: { responseLength: $event } })">
+          <option value="short">Short</option>
+          <option value="medium">Medium</option>
+          <option value="detailed">Detailed (code and complexity)</option>
+        </select>
+      </label>
+      <label class="toggle">
+        <input type="checkbox" [ngModel]="s().ai.autoAnswer" (ngModelChange)="update({ ai: { autoAnswer: $event } })" />
+        Answer automatically when a question is detected in the transcript
+      </label>
+      <label class="toggle">
+        <input type="checkbox" [ngModel]="s().ai.answerEveryLine" [disabled]="!s().ai.autoAnswer" (ngModelChange)="update({ ai: { answerEveryLine: $event } })" />
+        Answer every line, not only questions (after a short pause; skips "Okay", "Mm-hmm")
+      </label>
+      <label class="field">
+        <span>Custom instructions</span>
+        <textarea class="textarea" rows="2" placeholder="e.g. Use examples from fintech. Prefer Kotlin for code." [ngModel]="s().ai.customInstructions" (change)="update({ ai: { customInstructions: $any($event.target).value } })"></textarea>
+      </label>
+    </div>
+  </details>
+
+  <!-- -------------------------------------------------------- Speech -->
+  <details>
+    <summary>Speech recognition (whisper.cpp)</summary>
+    <div class="body">
+      <label class="field">
+        <span>Engine</span>
+        <select class="select" [ngModel]="s().stt.mode" (ngModelChange)="update({ stt: { mode: $event } })">
+          <option value="managed">Managed: the app runs whisper-server</option>
+          <option value="external">External: connect to a running whisper server</option>
+        </select>
+      </label>
+      @if (s().stt.mode === 'managed') {
+        <label class="field">
+          <span>whisper-server.exe path <em class="faint">(blank = auto-detect)</em></span>
+          <input class="input" spellcheck="false" placeholder="Auto-detect" [ngModel]="s().stt.serverPath" (change)="update({ stt: { serverPath: $any($event.target).value } })" />
+        </label>
+        <label class="field">
+          <span>Model file (ggml-*.bin) <em class="faint">(blank = auto-detect)</em></span>
+          <input class="input" spellcheck="false" placeholder="Auto-detect" [ngModel]="s().stt.modelPath" (change)="update({ stt: { modelPath: $any($event.target).value } })" />
+        </label>
+        <label class="field">
+          <span>CPU threads</span>
+          <input class="input narrow" type="number" min="1" max="32" [ngModel]="s().stt.threads" (change)="update({ stt: { threads: +$any($event.target).value } })" />
+        </label>
+      } @else {
+        <label class="field">
+          <span>Server URL</span>
+          <input class="input" spellcheck="false" [ngModel]="s().stt.externalUrl" (change)="update({ stt: { externalUrl: $any($event.target).value } })" />
+        </label>
+      }
+      <label class="field">
+        <span>End of sentence after {{ s().stt.silenceMs }} ms of silence</span>
+        <input type="range" min="300" max="2000" step="100" [ngModel]="s().stt.silenceMs" (change)="update({ stt: { silenceMs: +$any($event.target).value } })" />
+      </label>
+      <label class="field">
+        <span>Speech sensitivity <em class="faint">(raise in noisy rooms)</em></span>
+        <input type="range" min="0.002" max="0.06" step="0.002" [ngModel]="s().stt.vadThreshold" (change)="update({ stt: { vadThreshold: +$any($event.target).value } })" />
+      </label>
+      <label class="toggle">
+        <input type="checkbox" [ngModel]="s().stt.partials" (ngModelChange)="update({ stt: { partials: $event } })" />
+        Show text while someone is still speaking
+      </label>
+      <label class="field">
+        <span>Technical vocabulary <em class="faint">(helps spell terms like Angular, RxJS, Kubernetes)</em></span>
+        <textarea class="textarea" rows="3" maxlength="600" placeholder="Comma-separated terms you expect to hear" [ngModel]="s().stt.vocabulary" (change)="update({ stt: { vocabulary: $any($event.target).value } })"></textarea>
+      </label>
+      <div class="row">
+        <button type="button" class="btn" (click)="testStt()" [disabled]="sttTesting()">
+          @if (sttTesting()) {
+            <span class="spinner"></span> Starting engine…
+          } @else {
+            Test speech engine
+          }
+        </button>
+      </div>
+      @if (sttTest(); as t) {
+        @if (t.engine === 'ready') {
+          <div class="status ok"><span class="dot"></span>Ready · {{ t.modelPath || t.url }}</div>
+        } @else {
+          <div class="error-box">{{ t.error || 'Engine state: ' + t.engine }}</div>
+        }
+      }
+      <p class="hint">Language: English. Changes to the engine settings apply the next time capture starts.</p>
+    </div>
+  </details>
+
+  <!-- --------------------------------------------------------- Audio -->
+  <details>
+    <summary>Audio sources and permissions</summary>
+    <div class="body">
+      <label class="field">
+        <span>Microphone</span>
+        <div class="row nowrap">
+          <select class="select" [ngModel]="s().stt.micDeviceId" (ngModelChange)="update({ stt: { micDeviceId: $event } })">
+            <option value="">System default</option>
+            @for (m of mics(); track m.deviceId) {
+              <option [value]="m.deviceId">{{ m.label }}</option>
+            }
+          </select>
+          <button type="button" class="btn" (click)="loadMics()">Refresh</button>
+        </div>
+      </label>
+      <div class="row">
+        <label class="toggle">
+          <input type="checkbox" [ngModel]="s().stt.sources.mic" (ngModelChange)="update({ stt: { sources: { mic: $event, system: s().stt.sources.system } } })" />
+          Microphone
+        </label>
+        <label class="toggle">
+          <input type="checkbox" [ngModel]="s().stt.sources.system" (ngModelChange)="update({ stt: { sources: { mic: s().stt.sources.mic, system: $event } } })" />
+          System audio (loopback)
+        </label>
+      </div>
+      <div class="status" [class.ok]="s().privacy.captureConsent">
+        <span class="dot"></span>
+        Capture notice {{ s().privacy.captureConsent ? 'accepted' : 'not accepted yet (shown when you press Start)' }}
+        <span class="spacer"></span>
+        @if (s().privacy.captureConsent) {
+          <button type="button" class="btn small ghost" (click)="revokeConsent()">Revoke</button>
+        }
+      </div>
+      <p class="hint">
+        Windows must also allow desktop apps to use the microphone: Settings › Privacy &amp; security › Microphone › “Let desktop apps access your microphone”.
+        System audio captures everything your PC plays through its default output device; it needs no extra permission.
+      </p>
+    </div>
+  </details>
+
+  <!-- ------------------------------------------------------- Overlay -->
+  <details>
+    <summary>Window and overlay</summary>
+    <div class="body">
+      <label class="field">
+        <span>Opacity {{ (s().overlay.opacity * 100).toFixed(0) }}%</span>
+        <input type="range" min="30" max="100" step="5" [ngModel]="s().overlay.opacity * 100" (input)="setOpacity(+$any($event.target).value)" />
+      </label>
+      <label class="toggle">
+        <input type="checkbox" [ngModel]="s().overlay.alwaysOnTop" (ngModelChange)="update({ overlay: { alwaysOnTop: $event } })" />
+        Keep on top of other windows
+      </label>
+      <label class="toggle">
+        <input type="checkbox" [ngModel]="s().overlay.contentProtection" (ngModelChange)="update({ overlay: { contentProtection: $event } })" />
+        Hide from screen sharing and recordings
+      </label>
+      <p class="hint">Uses the operating system’s content-protection feature. Some screen-sharing or capture apps may not honor it.</p>
+      <div class="field">
+        <span>Size (px)</span>
+        <div class="row nowrap">
+          <input class="input narrow" type="number" min="340" aria-label="Width" [ngModel]="sizeDraft().width" (ngModelChange)="sizeDraft.set({ width: $event, height: sizeDraft().height })" />
+          ×
+          <input class="input narrow" type="number" min="420" aria-label="Height" [ngModel]="sizeDraft().height" (ngModelChange)="sizeDraft.set({ width: sizeDraft().width, height: $event })" />
+          <button type="button" class="btn" (click)="applySize()">Apply</button>
+        </div>
+      </div>
+      <div class="field">
+        <span>Position</span>
+        <div class="row">
+          @for (p of presets; track p.id) {
+            <button type="button" class="btn small" (click)="moveTo(p.id)">{{ p.label }}</button>
+          }
+        </div>
+      </div>
+      <p class="hint">Drag the title bar to move the window and its edges to resize. Size and position are remembered.</p>
+    </div>
+  </details>
+
+  <!-- ----------------------------------------------------- Shortcuts -->
+  <details>
+    <summary>Keyboard shortcuts</summary>
+    <div class="body">
+      @for (a of shortcutActions; track a) {
+        <div class="shortcut">
+          <span class="label">{{ shortcutLabels[a] }}</span>
+          <button
+            type="button"
+            class="btn small key"
+            [class.rec]="recording() === a"
+            (click)="recording.set(recording() === a ? null : a)"
+            (keydown)="onShortcutKey(a, $event)"
+            (blur)="recording() === a && recording.set(null)">
+            {{ recording() === a ? 'Press keys…' : formatAccelerator(s().shortcuts[a]) || 'None' }}
+          </button>
+          @if (shortcutStatus()?.[a]; as st) {
+            @if (st.accelerator && !st.registered) {
+              <span class="small-text bad-text">{{ st.error || 'Not registered' }}</span>
+            }
+          }
+        </div>
+      }
+      <p class="hint">Click a shortcut, then press the new combination. Esc cancels, Backspace clears. These work even when the window is hidden.</p>
+    </div>
+  </details>
+
+  <!-- ------------------------------------------------------- Privacy -->
+  <details>
+    <summary>Privacy and history</summary>
+    <div class="body">
+      <label class="toggle">
+        <input type="checkbox" [ngModel]="s().privacy.saveHistory" (ngModelChange)="update({ privacy: { saveHistory: $event } })" />
+        Save transcripts and answers to local history
+      </label>
+      <label class="field">
+        <span>Delete history older than (days, 0 = never)</span>
+        <input class="input narrow" type="number" min="0" max="3650" [ngModel]="s().privacy.historyRetentionDays" (change)="update({ privacy: { historyRetentionDays: +$any($event.target).value } })" />
+      </label>
+      <label class="toggle">
+        <input type="checkbox" [ngModel]="s().privacy.saveAudio" (ngModelChange)="update({ privacy: { saveAudio: $event } })" />
+        Save recognised audio segments as WAV files
+      </label>
+      @if (s().privacy.saveAudio) {
+        <div class="warn-box">Audio segments are written to the <code>recordings</code> folder in the data folder until you delete them.</div>
+      }
+      <div class="row">
+        <button type="button" class="btn" (click)="openDataFolder()">Open data folder</button>
+        <button type="button" class="btn" (click)="clearHistory()">Delete all history</button>
+      </div>
+      <p class="hint">
+        Audio is processed in memory by whisper.cpp on this computer.
+        @if (s().ai.provider === 'groq') {
+          AI requests go to Groq (online), or to your local Ollama when Groq is unavailable.
+        } @else {
+          AI requests go only to the Ollama endpoint above, so everything stays on this computer.
+        }
+      </p>
+    </div>
+  </details>
+
+  <!-- ------------------------------------------------------- Profile -->
+  <details>
+    <summary>Profile and resume</summary>
+    <div class="body">
+      <label class="field">
+        <span>Target role</span>
+        <input class="input" placeholder="e.g. Senior Java Backend Engineer" [ngModel]="s().profile.targetRole" (change)="update({ profile: { targetRole: $any($event.target).value } })" />
+      </label>
+      <div class="field">
+        <span>Resume <em class="faint">({{ s().profile.resumeText.length.toLocaleString() }} / 20,000 characters)</em></span>
+        <textarea class="textarea" rows="6" placeholder="Paste your resume, or import a PDF, DOCX or text file" [ngModel]="s().profile.resumeText" (change)="update({ profile: { resumeText: $any($event.target).value } })"></textarea>
+      </div>
+      <div class="row">
+        <label class="btn">
+          Import file…
+          <input type="file" hidden [accept]="resumeAccept" (change)="importResume($event)" />
+        </label>
+        <button type="button" class="btn ghost" (click)="update({ profile: { resumeText: '' } })" [disabled]="!s().profile.resumeText">Clear</button>
+      </div>
+      @if (resumeStatus(); as rs) {
+        <p class="hint">{{ rs }}</p>
+      }
+      <p class="hint">Used to personalise answers and practice questions. Stored only in your local settings file.</p>
+    </div>
+  </details>
+
+  <!-- --------------------------------------------------- Diagnostics -->
+  <details (toggle)="$any($event.target).open && loadDiagnostics()">
+    <summary>Diagnostics</summary>
+    <div class="body">
+      @if (diagnostics(); as d) {
+        <dl>
+          <dt>Version</dt><dd>{{ d.app.version }} · Electron {{ d.app.electron }} · Chrome {{ d.app.chrome }}</dd>
+          <dt>Ollama</dt><dd>{{ d.ollama.reachable ? 'reachable (' + d.ollama.version + ')' : d.ollama.error }}</dd>
+          <dt>Speech</dt><dd>{{ d.stt.engine }}{{ d.stt.error ? ' – ' + d.stt.error : '' }}</dd>
+          <dt>Data folder</dt><dd class="path">{{ d.userDataPath }}</dd>
+          <dt>Log file</dt><dd class="path">{{ d.logPath }}</dd>
+        </dl>
+      }
+      <div class="row">
+        <button type="button" class="btn" (click)="copyDiagnostics()">Copy diagnostics</button>
+        <button type="button" class="btn" (click)="openDataFolder()">Open logs</button>
+      </div>
+      <p class="hint">Diagnostics include versions, paths and service status only, never transcripts or your resume.</p>
+    </div>
+  </details>
+</div>

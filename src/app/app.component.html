@@ -1,0 +1,76 @@
+<div class="shell" [class.blurred]="!windowState().focused" [class.capturing]="capturing()">
+  <header class="titlebar">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">IP</span>
+      <span class="name">InterviewPilot</span>
+      @if (capturing()) {
+        <span
+          class="rec"
+          [class.paused]="transcript.capture() === 'paused'"
+          role="status"
+          [title]="transcript.capture() === 'paused' ? 'Capture paused' : 'Audio capture is active'">
+          <span class="dot"></span>{{ transcript.capture() === 'paused' ? 'PAUSED' : 'REC' }}
+        </span>
+      } @else {
+        <span class="badge" title="The window is a normal, visible desktop window">Practice mode</span>
+      }
+    </div>
+    <div class="actions">
+      <button
+        type="button"
+        class="icon-btn"
+        [class.active]="windowState().alwaysOnTop"
+        [attr.aria-pressed]="windowState().alwaysOnTop"
+        (click)="togglePin()"
+        title="Keep on top"
+        aria-label="Keep on top">
+        <svg viewBox="0 0 16 16"><path d="M10 1.5 14.5 6l-2 .5-2.8 2.8.3 3.2-1.2 1.2L6 10.9l-3.6 3.6-.9-.9L5.1 10 2.3 7.2l1.2-1.2 3.2.3L9.5 3.5z"/></svg>
+      </button>
+      <button type="button" class="icon-btn" (click)="minimize()" title="Minimize" aria-label="Minimize">
+        <svg viewBox="0 0 16 16"><path d="M3 8.5h10v1H3z"/></svg>
+      </button>
+      <button type="button" class="icon-btn" (click)="hide()" title="Hide (bring back with the shortcut)" aria-label="Hide">
+        <svg viewBox="0 0 16 16"><path d="M8 3.5c3.4 0 6 3 6.5 4.5-.5 1.5-3.1 4.5-6.5 4.5S2 9.5 1.5 8C2 6.5 4.6 3.5 8 3.5zm0 2a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM2.6 2l11.4 11.4-.7.7L1.9 2.7z"/></svg>
+      </button>
+      <button type="button" class="icon-btn danger" (click)="close()" title="Quit" aria-label="Quit">
+        <svg viewBox="0 0 16 16"><path d="m4.2 3.5 3.8 3.8 3.8-3.8.7.7L8.7 8l3.8 3.8-.7.7L8 8.7l-3.8 3.8-.7-.7L7.3 8 3.5 4.2z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <nav class="tabs" aria-label="Sections">
+    @for (t of tabs; track t.id; let i = $index) {
+      <button type="button" [class.on]="tab() === t.id" [attr.aria-current]="tab() === t.id ? 'page' : null" (click)="tab.set(t.id)" [title]="t.label + ' (Ctrl+' + (i + 1) + ')'">
+        {{ t.label }}
+      </button>
+    }
+  </nav>
+
+  <section class="status" aria-label="Capture status">
+    <span class="pill" [class.on]="micOn()" [class.off]="!micOn()"><span class="dot"></span>Mic {{ micOn() ? 'on' : 'off' }}</span>
+    <span class="pill" [class.on]="systemOn()" [class.off]="!systemOn()"><span class="dot"></span>System {{ systemOn() ? 'on' : 'off' }}</span>
+    <span class="pill" [class.warn]="transcript.status().engine === 'starting'" [class.bad]="transcript.status().engine === 'error'" [class.ok]="transcript.status().engine === 'ready'">
+      <span class="dot"></span>{{ sttLabel() }}
+    </span>
+    <button type="button" class="pill as-btn" [class.ok]="ollamaOk()" [class.bad]="!ollamaOk() && !!ai.status()" (click)="tab.set('settings')" [title]="ai.status()?.error || (ai.status()?.provider === 'groq' ? 'Groq: ' + ai.status()?.activeModel : 'Ollama connection')">
+      <span class="dot"></span>{{ ollamaLabel() }}
+    </button>
+  </section>
+
+  <main class="views">
+    <app-live [hidden]="tab() !== 'live'" />
+    <app-chat [hidden]="tab() !== 'chat'" />
+    <app-practice [hidden]="tab() !== 'practice'" />
+    <app-history [hidden]="tab() !== 'history'" [active]="tab() === 'history'" />
+    <app-settings [hidden]="tab() !== 'settings'" [active]="tab() === 'settings'" />
+  </main>
+
+  <footer class="footer">
+    @if (info(); as i) {
+      <span>Show / hide: <kbd>{{ toggleShortcut() }}</kbd></span>
+      <span class="muted">v{{ i.version }} · Electron {{ i.electron }}</span>
+    } @else {
+      <span class="muted">Loading…</span>
+    }
+  </footer>
+</div>

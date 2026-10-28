@@ -1,0 +1,116 @@
+<section class="panel practice">
+  <div class="panel-head">
+    <h2>Practice</h2>
+    <span class="spacer"></span>
+    @if (mock(); as m) {
+      <span class="badge">Mock interview · {{ index() + 1 }}/{{ questions().length }}</span>
+      <button type="button" class="btn small ghost" (click)="endMock()">End</button>
+    } @else {
+      <button type="button" class="btn small" (click)="startMock()" [disabled]="questions().length === 0" title="Five questions in a row, each scored">
+        Mock interview
+      </button>
+    }
+  </div>
+
+  <div class="panel-body scroll">
+    @if (!mock()) {
+      <div class="row pickers">
+        <select class="select" aria-label="Question source" [ngModel]="sourceId()" (ngModelChange)="selectSource($event)">
+          @for (c of categories; track c.id) {
+            <option [value]="c.id">{{ c.label }}</option>
+          }
+          <option [value]="RESUME">Personalised (from my resume)</option>
+        </select>
+        @if (sourceId() !== RESUME) {
+          <select class="select level" aria-label="Difficulty" [ngModel]="level()" (ngModelChange)="selectLevel($event)">
+            @for (l of levels; track l) {
+              <option [value]="l">{{ l === 'all' ? 'All levels' : l }}</option>
+            }
+          </select>
+          <button type="button" class="btn" (click)="reshuffle()" title="Shuffle">Shuffle</button>
+        } @else {
+          <button type="button" class="btn primary" (click)="generateFromResume()" [disabled]="!!generator()?.active">
+            @if (generator()?.active) {
+              <span class="spinner"></span> Generating…
+            } @else {
+              Generate questions
+            }
+          </button>
+        }
+      </div>
+    }
+
+    @if (notice(); as n) {
+      <div class="warn-box">{{ n }}</div>
+    }
+    @if (generator()?.error(); as err) {
+      <div class="error-box">{{ err }}</div>
+    }
+
+    @if (mock()?.finished) {
+      <div class="summary">
+        <h3>Mock interview complete</h3>
+        <p>
+          Average score:
+          <strong>{{ mockAverage() !== null ? mockAverage()!.toFixed(1) + ' / 10' : 'not scored' }}</strong>
+        </p>
+        <ol>
+          @for (q of questions(); track $index) {
+            <li>
+              <span>{{ q }}</span>
+              <span class="score">{{ mock()!.scores[$index] ?? '–' }}</span>
+            </li>
+          }
+        </ol>
+        <button type="button" class="btn primary" (click)="endMock()">Done</button>
+      </div>
+    } @else if (current()) {
+      <div class="question">
+        <div class="row">
+          <span class="small-text muted">Question {{ index() + 1 }} of {{ questions().length }}</span>
+          <span class="spacer"></span>
+          @if (!mock()) {
+            <button type="button" class="btn small ghost" (click)="move(-1)" [disabled]="index() === 0">Prev</button>
+            <button type="button" class="btn small ghost" (click)="move(1)" [disabled]="index() >= questions().length - 1">Next</button>
+          }
+        </div>
+        <p class="q">{{ current() }}</p>
+      </div>
+
+      <textarea
+        class="textarea"
+        rows="4"
+        placeholder="Type your answer, or dictate it with the microphone"
+        [ngModel]="answer()"
+        (ngModelChange)="answer.set($event)"></textarea>
+      <div class="row">
+        <button type="button" class="btn" [class.live]="dictating()" (click)="toggleDictation()">
+          {{ dictating() ? 'Stop dictation' : 'Dictate' }}
+        </button>
+        <span class="spacer"></span>
+        @if (!mock()) {
+          <button type="button" class="btn" (click)="modelAnswer()">Model answer</button>
+        }
+        <button type="button" class="btn primary" (click)="evaluate()" [disabled]="!answer().trim()">Evaluate</button>
+        @if (mock() && stream()?.state() === 'done' && streamKind() === 'evaluate') {
+          <button type="button" class="btn live" (click)="nextMock()">
+            {{ index() >= questions().length - 1 ? 'Finish' : 'Next question' }}
+          </button>
+        }
+      </div>
+
+      <app-response-view
+        [stream]="stream()"
+        [placeholder]="mock() ? 'Answer the question, then press Evaluate for a score and feedback.' : 'Evaluate your answer or ask for a model answer.'"
+        (regenerate)="regenerate()" />
+    } @else if (sourceId() === RESUME && !generator()) {
+      <div class="empty">
+        @if (hasResume()) {
+          Generate questions tailored to your resume and target role.
+        } @else {
+          Add your resume and target role in <strong>Settings › Profile</strong>, then generate personalised questions.
+        }
+      </div>
+    }
+  </div>
+</section>

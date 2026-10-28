@@ -1,0 +1,108 @@
+{
+  "name": "interviewpilot",
+  "productName": "InterviewPilot AI",
+  "version": "0.1.0",
+  "description": "Local AI interview assistant for Windows: live transcription with whisper.cpp and answers from Ollama",
+  "author": "InterviewPilot AI",
+  "main": "dist-electron/main.js",
+  "private": true,
+  "scripts": {
+    "ng": "ng",
+    "start": "npm run build && node scripts/run-electron.mjs",
+    "dev": "concurrently -k -n ui,electron -c cyan,magenta \"ng serve --port 4200\" \"wait-on tcp:4200 && npm run build:electron && node scripts/run-electron.mjs --dev\"",
+    "build": "npm run typecheck:electron && npm run build:ui && npm run build:electron",
+    "build:ui": "ng build",
+    "build:electron": "node scripts/build-electron.mjs",
+    "typecheck:electron": "tsc -p electron/tsconfig.json",
+    "test": "npm run test:electron && npm run test:ui",
+    "test:electron": "vitest run",
+    "test:ui": "ng test --watch=false --browsers=ChromeHeadless",
+    "test:e2e": "node tests/e2e/smoke.mjs",
+    "test:loopback": "node tests/e2e/loopback.mjs",
+    "test:protection": "node tests/e2e/content-protection.mjs",
+    "setup:whisper": "node scripts/setup-whisper.mjs",
+    "icon": "node scripts/make-icon.mjs",
+    "dist": "npm run build && electron-builder --win nsis --x64",
+    "dist:dir": "npm run build && electron-builder --win dir --x64"
+  },
+  "build": {
+    "appId": "com.interviewpilot.app",
+    "productName": "InterviewPilot AI",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/interviewpilot/browser/**",
+      "dist-electron/**",
+      "!**/*.map",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "tools/whisper",
+        "to": "whisper",
+        "filter": [
+          "bin/whisper-server.exe",
+          "bin/whisper.dll",
+          "bin/ggml*.dll",
+          "models/ggml-*.en.bin",
+          "models/ggml-silero-*.bin"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "InterviewPilot AI",
+      "deleteAppDataOnUninstall": false
+    }
+  },
+  "devDependencies": {
+    "@angular-devkit/build-angular": "^18.2.21",
+    "@angular/animations": "^18.2.0",
+    "@angular/cli": "^18.2.21",
+    "@angular/common": "^18.2.0",
+    "@angular/compiler": "^18.2.0",
+    "@angular/compiler-cli": "^18.2.0",
+    "@angular/core": "^18.2.0",
+    "@angular/forms": "^18.2.0",
+    "@angular/platform-browser": "^18.2.0",
+    "@angular/platform-browser-dynamic": "^18.2.0",
+    "@angular/router": "^18.2.0",
+    "@types/jasmine": "~5.1.0",
+    "@types/node": "^20.17.10",
+    "concurrently": "^9.1.0",
+    "cross-env": "^7.0.3",
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8",
+    "esbuild": "^0.23.0",
+    "jasmine-core": "~5.2.0",
+    "karma": "~6.4.0",
+    "karma-chrome-launcher": "~3.2.0",
+    "karma-coverage": "~2.2.0",
+    "karma-jasmine": "~5.1.0",
+    "karma-jasmine-html-reporter": "~2.1.0",
+    "pdfjs-dist": "4.10.38",
+    "rxjs": "~7.8.0",
+    "tslib": "^2.3.0",
+    "typescript": "~5.5.2",
+    "vitest": "^2.1.8",
+    "wait-on": "^8.0.1",
+    "zone.js": "~0.14.10"
+  }
+}
