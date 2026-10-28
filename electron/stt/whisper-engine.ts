@@ -26,10 +26,22 @@ export interface TranscribeOptions {
 /**
  * Encoder context for a clip: 50 positions per second plus 2 s of headroom.
  * whisper always encodes 30 s (1500 positions) by default, so for typical 3-10 s
- * utterances this cuts inference time by 2-3x with the same transcript.
+ * utterances this cuts inference time by 2-3x on a CPU. Only used for models that
+ * keep their accuracy with it, see shortContextModel.
  */
 export function audioContext(seconds: number): number {
   return Math.min(1500, Math.max(320, Math.ceil((seconds + 2) * 50)));
+}
+
+/**
+ * Whether a model transcribes as well with the shortened encoder context. Measured on
+ * spoken interview questions: small.en gives the same transcripts 2.5x faster, while
+ * large-v3-turbo falls apart (most sentences come back as loops such as "it's, it's,
+ * it's") and needs only ~0.2 s with the full window on a GPU. Larger and unknown
+ * models, and external servers, always get the full 30 s window.
+ */
+export function shortContextModel(modelPath: string | undefined): boolean {
+  return !!modelPath && /^ggml-(tiny|base|small)(\.en)?(-q\d_\d)?\.bin$/i.test(path.basename(modelPath));
 }
 
 const STARTUP_TIMEOUT_MS = 60_000;
@@ -89,7 +101,9 @@ export class WhisperEngine {
     // Temperature fallback re-decodes unclear audio; worth it for finals, too slow for previews.
     form.append('temperature_inc', opts.fast ? '0.0' : '0.2');
     if (!opts.fast) form.append('beam_size', '5');
-    if (opts.audioSec) form.append('audio_ctx', String(audioContext(opts.audioSec)));
+    if (opts.audioSec && shortContextModel(this.snapshot.modelPath)) {
+      form.append('audio_ctx', String(audioContext(opts.audioSec)));
+    }
     if (prompt) form.append('prompt', prompt);
     const res = await fetch(`${url}/inference`, {
       method: 'POST',

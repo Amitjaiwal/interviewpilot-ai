@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { Logger } from '../../electron/logger';
-import { WhisperEngine, findModel } from '../../electron/stt/whisper-engine';
+import { WhisperEngine, findModel, shortContextModel } from '../../electron/stt/whisper-engine';
 
 let dir: string;
 const log = { info: () => undefined, warn: () => undefined } as unknown as Logger;
@@ -31,6 +31,19 @@ describe('findModel', () => {
     expect(path.basename(findModel(path.join(dir, 'models'))!)).toBe('ggml-small.en.bin');
     touch('models', 'ggml-large-v3-turbo-q8_0.bin');
     expect(path.basename(findModel(path.join(dir, 'models'))!)).toBe('ggml-large-v3-turbo-q8_0.bin');
+  });
+});
+
+describe('shortContextModel', () => {
+  it('shortens the encoder window only for the small models that stay accurate with it', () => {
+    expect(shortContextModel(path.join('C:', 'whisper', 'models', 'ggml-small.en.bin'))).toBe(true);
+    expect(shortContextModel('ggml-base.en.bin')).toBe(true);
+    expect(shortContextModel('ggml-tiny.en-q5_1.bin')).toBe(true);
+    // large-v3-turbo turns most sentences into loops with a short window
+    expect(shortContextModel(path.join('D:', 'tools', 'whisper', 'models', 'ggml-large-v3-turbo-q8_0.bin'))).toBe(false);
+    expect(shortContextModel('ggml-medium.en.bin')).toBe(false);
+    // external server: model unknown
+    expect(shortContextModel(undefined)).toBe(false);
   });
 });
 

@@ -18,13 +18,18 @@ export async function waitFor(fn, timeoutMs, label) {
   }
 }
 
-/** Launch the app; extra Chromium switches go in `args`. */
+/**
+ * Launch the app; extra Chromium switches go in `args`. Set E2E_APP_EXE to a
+ * packaged InterviewPilot AI.exe (npm run test:e2e:packaged) to test the
+ * installed build instead of the project folder.
+ */
 export function launch(args = [], port = 9333) {
   const userData = mkdtempSync(join(tmpdir(), 'ip-e2e-'));
   const env = { ...process.env, INTERVIEWPILOT_USER_DATA: userData };
   delete env.ELECTRON_RUN_AS_NODE;
   delete env.ELECTRON_START_URL;
-  const proc = spawn(electronPath, ['.', `--remote-debugging-port=${port}`, ...args], {
+  const exe = process.env.E2E_APP_EXE;
+  const proc = spawn(exe || electronPath, [...(exe ? [] : ['.']), `--remote-debugging-port=${port}`, ...args], {
     env,
     stdio: ['ignore', 'inherit', 'inherit'],
   });

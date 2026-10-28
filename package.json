@@ -1,7 +1,7 @@
 {
   "name": "interviewpilot",
   "productName": "InterviewPilot AI",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Local AI interview assistant for Windows: live transcription with whisper.cpp and answers from Ollama",
   "author": "InterviewPilot AI",
   "main": "dist-electron/main.js",
@@ -18,6 +18,7 @@
     "test:electron": "vitest run",
     "test:ui": "ng test --watch=false --browsers=ChromeHeadless",
     "test:e2e": "node tests/e2e/smoke.mjs",
+    "test:e2e:packaged": "cross-env \"E2E_APP_EXE=release/win-unpacked/InterviewPilot AI.exe\" node tests/e2e/smoke.mjs",
     "test:loopback": "node tests/e2e/loopback.mjs",
     "test:protection": "node tests/e2e/content-protection.mjs",
     "setup:whisper": "node scripts/setup-whisper.mjs",
@@ -32,6 +33,7 @@
       "output": "release",
       "buildResources": "build"
     },
+    "afterPack": "scripts/after-pack.cjs",
     "files": [
       "dist/interviewpilot/browser/**",
       "dist-electron/**",
@@ -63,6 +65,7 @@
       "icon": "build/icon.ico"
     },
     "nsis": {
+      "artifactName": "InterviewPilot-AI-Setup.exe",
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
@@ -84,6 +87,7 @@
     "@angular/platform-browser": "^18.2.0",
     "@angular/platform-browser-dynamic": "^18.2.0",
     "@angular/router": "^18.2.0",
+    "@electron/fuses": "^1.8.0",
     "@types/jasmine": "~5.1.0",
     "@types/node": "^20.17.10",
     "concurrently": "^9.1.0",
