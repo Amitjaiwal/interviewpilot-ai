@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { Logger } from '../../electron/logger';
-import { WhisperEngine, findModel, shortContextModel } from '../../electron/stt/whisper-engine';
+import { WhisperEngine, findModel, serverArgPath, shortContextModel } from '../../electron/stt/whisper-engine';
 
 let dir: string;
 const log = { info: () => undefined, warn: () => undefined } as unknown as Logger;
@@ -44,6 +44,26 @@ describe('shortContextModel', () => {
     expect(shortContextModel('ggml-medium.en.bin')).toBe(false);
     // external server: model unknown
     expect(shortContextModel(undefined)).toBe(false);
+  });
+});
+
+describe('serverArgPath', () => {
+  const root = path.join(path.parse(process.cwd()).root, 'Users');
+
+  it('leaves an ASCII path untouched', () => {
+    const model = path.join(root, 'Amit Jaiwal', 'whisper', 'models', 'ggml-small.en.bin');
+    expect(serverArgPath(model, path.join(root, 'Amit Jaiwal', 'whisper', 'bin'))).toBe(model);
+  });
+
+  it('avoids non-ASCII characters in the shared part of the path', () => {
+    const base = path.join(root, 'अमित', 'whisper');
+    const relative = serverArgPath(path.join(base, 'models', 'ggml-small.en.bin'), path.join(base, 'bin'));
+    expect(relative).toBe(path.join('..', 'models', 'ggml-small.en.bin'));
+  });
+
+  it('keeps the absolute path when a relative one would still be non-ASCII', () => {
+    const model = path.join(root, 'अमित', 'models', 'ggml-small.en.bin');
+    expect(serverArgPath(model, path.join(root, 'someone', 'bin'))).toBe(model);
   });
 });
 

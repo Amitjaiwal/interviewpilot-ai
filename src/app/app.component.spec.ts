@@ -57,6 +57,72 @@ describe('AppComponent', () => {
     expect(el.querySelector('.shell')?.classList).toContain('capturing');
   });
 
+  describe('first-run AI setup banner', () => {
+    const banner = async () => ((await render()).nativeElement as HTMLElement).querySelector<HTMLElement>('.setup-banner');
+
+    it('is hidden when local AI is ready', async () => {
+      expect(await banner()).toBeNull();
+    });
+
+    it('appears when Ollama is not running', async () => {
+      fake.setAiStatus({ reachable: false, models: [], activeModel: undefined });
+      expect((await banner())?.textContent).toContain('one-time setup');
+    });
+
+    it('appears when Ollama has no models', async () => {
+      fake.setAiStatus({ models: [], activeModel: undefined });
+      expect((await banner())?.textContent).toContain('one-time setup');
+    });
+
+    it('appears when Groq has no key', async () => {
+      fake.setAiStatus({ provider: 'groq', apiKeySet: false, reachable: false, models: [] });
+      expect((await banner())?.textContent).toContain('one-time setup');
+    });
+
+    it('appears when Groq rejects the saved key', async () => {
+      fake.setAiStatus({ provider: 'groq', apiKeySet: true, keyRejected: true, reachable: false, models: [] });
+      expect((await banner())?.textContent).toContain('one-time setup');
+    });
+
+    it('stays away when Groq is merely unreachable: that is not a setup problem', async () => {
+      fake.setAiStatus({ provider: 'groq', apiKeySet: true, reachable: false, models: [] });
+      expect(await banner()).toBeNull();
+    });
+
+    it('opens the Settings tab, where the steps are, and then gets out of the way', async () => {
+      fake.setAiStatus({ reachable: false, models: [], activeModel: undefined });
+      const fixture = await render();
+      const el: HTMLElement = fixture.nativeElement;
+      el.querySelector<HTMLElement>('.setup-banner')!.click();
+      fixture.detectChanges();
+      expect(fixture.componentInstance.tab()).toBe('settings');
+      expect(el.querySelector('.setup-banner')).toBeNull();
+    });
+
+    it('checks Ollama again when the Settings tab opens, so a fresh install is noticed', async () => {
+      const fixture = await render();
+      const el: HTMLElement = fixture.nativeElement;
+      expect(el.querySelector('app-settings .setup')).toBeNull();
+
+      fake.setAiStatus({ reachable: false, models: [], activeModel: undefined });
+      fixture.componentInstance.tab.set('settings');
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      expect(el.querySelector('app-settings .setup')?.textContent).toContain('Step 1 of 2');
+      expect(el.querySelector('app-settings .setup a')?.getAttribute('href')).toBe('https://ollama.com/download/windows');
+
+      fake.setAiStatus({ reachable: true, models: [] });
+      fixture.componentInstance.tab.set('live');
+      fixture.detectChanges();
+      fixture.componentInstance.tab.set('settings');
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      expect(el.querySelector('app-settings .setup')?.textContent).toContain('Step 2 of 2');
+    });
+  });
+
   it('toggles always-on-top through the bridge', async () => {
     const fixture = await render();
     expect(fixture.componentInstance.windowState().alwaysOnTop).toBeTrue();

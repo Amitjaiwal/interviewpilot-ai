@@ -1,8 +1,8 @@
 {
   "name": "interviewpilot",
   "productName": "InterviewPilot AI",
-  "version": "0.1.1",
-  "description": "Local AI interview assistant for Windows: live transcription with whisper.cpp and answers from Ollama",
+  "version": "1.0.0",
+  "description": "AI interview assistant for Windows: live transcription with whisper.cpp and answers from Groq or Ollama",
   "author": "InterviewPilot AI",
   "main": "dist-electron/main.js",
   "private": true,
@@ -21,7 +21,10 @@
     "test:e2e:packaged": "cross-env \"E2E_APP_EXE=release/win-unpacked/InterviewPilot AI.exe\" node tests/e2e/smoke.mjs",
     "test:loopback": "node tests/e2e/loopback.mjs",
     "test:protection": "node tests/e2e/content-protection.mjs",
+    "test:first-run": "node tests/e2e/first-run.mjs",
+    "test:onboarding": "node tests/e2e/onboarding.mjs",
     "setup:whisper": "node scripts/setup-whisper.mjs",
+    "setup:whisper:installer": "node scripts/setup-whisper.mjs --model base.en && node scripts/setup-whisper.mjs --model small.en",
     "icon": "node scripts/make-icon.mjs",
     "dist": "npm run build && electron-builder --win nsis --x64",
     "dist:dir": "npm run build && electron-builder --win dir --x64"
@@ -34,6 +37,7 @@
       "buildResources": "build"
     },
     "afterPack": "scripts/after-pack.cjs",
+    "publish": null,
     "files": [
       "dist/interviewpilot/browser/**",
       "dist-electron/**",
@@ -48,8 +52,9 @@
           "bin/whisper-server.exe",
           "bin/whisper.dll",
           "bin/ggml*.dll",
-          "models/ggml-*.en.bin",
-          "models/ggml-silero-*.bin"
+          "models/ggml-base.en.bin",
+          "models/ggml-small.en.bin",
+          "models/ggml-silero-v5.1.2.bin"
         ]
       }
     ],
@@ -65,7 +70,8 @@
       "icon": "build/icon.ico"
     },
     "nsis": {
-      "artifactName": "InterviewPilot-AI-Setup.exe",
+      "artifactName": "InterviewPilot-AI-Setup-${version}.exe",
+      "differentialPackage": false,
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,

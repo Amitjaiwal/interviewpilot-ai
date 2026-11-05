@@ -1,4 +1,4 @@
-import type { AiEvent, InterviewPilotApi, ShortcutAction, SttEvent, WindowState } from '../../../shared/ipc';
+import type { AiEvent, AiStatus, InterviewPilotApi, ShortcutAction, SttEvent, WindowState } from '../../../shared/ipc';
 import { DEFAULT_SETTINGS, Settings, applySettingsPatch } from '../../../shared/settings';
 
 /** A scriptable in-memory InterviewPilotApi for component and service tests. */
@@ -10,6 +10,18 @@ export function createFakeApi() {
   const stt = new Set<(e: SttEvent) => void>();
   const shortcuts = new Set<(a: ShortcutAction) => void>();
   const aiRequests: unknown[] = [];
+  let aiStatus: AiStatus = {
+    provider: 'local',
+    apiKeySet: false,
+    reachable: true,
+    endpoint: 'http://127.0.0.1:11434',
+    version: '0.9.0',
+    models: [{ name: 'qwen2.5:7b', sizeBytes: 4e9 }],
+    activeModel: 'qwen2.5:7b',
+    modelMissing: false,
+  };
+  /** What saving an API key does; tests replace this to accept or refuse a key. */
+  let onSetApiKey: (key: string) => AiStatus = () => aiStatus;
 
   const api: InterviewPilotApi = {
     getAppInfo: async () => ({
@@ -54,19 +66,11 @@ export function createFakeApi() {
       onChange: () => () => undefined,
     },
     ai: {
-      status: async () => ({
-        provider: 'local',
-        apiKeySet: false,
-        reachable: true,
-        endpoint: 'http://127.0.0.1:11434',
-        version: '0.9.0',
-        models: [{ name: 'qwen2.5:7b', sizeBytes: 4e9 }],
-        activeModel: 'qwen2.5:7b',
-        modelMissing: false,
-      }),
-      setApiKey: async () => {
-        throw new Error('not used');
-      },
+      status: async () => aiStatus,
+      setApiKey: async (key) => (aiStatus = onSetApiKey(key)),
+      pullRecommendedModel: async () => aiStatus,
+      cancelPull: () => calls.push('cancel-pull'),
+      onPullProgress: () => () => undefined,
       start: async (req) => {
         aiRequests.push(req);
         return `req-${aiRequests.length}`;
@@ -85,6 +89,7 @@ export function createFakeApi() {
       stop: async () => ({ engine: 'ready', capture: 'idle', queue: 0 }),
       pushAudio: () => undefined,
       test: async () => ({ engine: 'ready', capture: 'idle', queue: 0 }),
+      micAccess: async () => 'granted',
       onEvent: (l) => {
         stt.add(l);
         return () => stt.delete(l);
@@ -102,6 +107,9 @@ export function createFakeApi() {
     api,
     calls,
     aiRequests,
+    setAiStatus: (patch: Partial<AiStatus>) => (aiStatus = { ...aiStatus, ...patch }),
+    onSetApiKey: (fn: (key: string) => AiStatus) => (onSetApiKey = fn),
+    setSettings: (patch: Partial<Settings>) => (settings = { ...settings, ...patch }),
     emitAi: (e: AiEvent) => ai.forEach((l) => l(e)),
     emitStt: (e: SttEvent) => stt.forEach((l) => l(e)),
     emitShortcut: (a: ShortcutAction) => shortcuts.forEach((l) => l(a)),

@@ -8,11 +8,12 @@ export const GROQ_BASE_URL = 'https://api.groq.com/openai/v1';
  * often, so the first one the key can actually use wins.
  */
 export const GROQ_PREFERRED_MODELS = [
-  // Measured October 2026: full short answer in ~0.5 s, accurate, and the only one
+  // A production model. Groq says Preview models "may be discontinued at short notice".
+  'openai/gpt-oss-120b',
+  // Preview. Measured October 2026: full short answer in ~0.5 s, accurate, and the only one
   // that did not invent experience missing from the resume.
   'qwen/qwen3.8-27b',
   'openai/gpt-oss-20b',
-  'openai/gpt-oss-120b',
   'llama-3.3-70b-versatile',
   'qwen/qwen3-32b',
   'llama-3.1-8b-instant',
@@ -50,7 +51,7 @@ export class GroqClient {
     } catch (err) {
       return { ...base, error: describeConnectionError(err) };
     }
-    if (!res.ok) return { ...base, error: await describeHttpError(res) };
+    if (!res.ok) return { ...base, keyRejected: res.status === 401, error: await describeHttpError(res) };
     const body = (await res.json()) as { data?: { id: string; active?: boolean; context_window?: number }[] };
     const models: OllamaModel[] = (body.data ?? [])
       .filter((m) => m.active !== false && !NON_CHAT.test(m.id))
@@ -68,10 +69,13 @@ export class GroqClient {
     };
   }
 
-  /** The configured model, else the best preferred one seen at the last status check. */
+  /**
+   * The configured model, else the best preferred one seen at the last status check, else any
+   * chat model the key can use: Groq retiring every preferred model must not stop the app.
+   */
   pickModel(configured: string): string {
     if (configured) return configured;
-    return GROQ_PREFERRED_MODELS.find((m) => this.available.includes(m)) ?? GROQ_PREFERRED_MODELS[0];
+    return GROQ_PREFERRED_MODELS.find((m) => this.available.includes(m)) ?? this.available[0] ?? GROQ_PREFERRED_MODELS[0];
   }
 
   /** Streams a chat completion like OllamaClient.chat, mapping failures to OllamaError codes. */
@@ -190,5 +194,5 @@ async function describeHttpError(res: Response): Promise<string> {
 function describeConnectionError(err: unknown): string {
   const cause = err instanceof Error ? ((err.cause as Error | undefined)?.message ?? err.message) : String(err);
   if (/abort|timeout/i.test(cause)) return 'Groq did not answer in time. Check your internet connection.';
-  return `Cannot reach Groq (${cause}). Check your internet connection.`;
+  return `Cannot reach Groq. Check your internet connection. (${cause})`;
 }

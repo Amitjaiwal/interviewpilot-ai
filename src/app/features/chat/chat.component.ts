@@ -23,7 +23,7 @@ const STARTERS = [
   'Compare REST and gRPC for microservices',
 ];
 
-/** Free-form study chat with the local model. */
+/** Free-form study chat with the chosen AI provider. */
 @Component({
   selector: 'app-chat',
   standalone: true,
@@ -61,7 +61,7 @@ const STARTERS = [
         }
         @if (turns().length === 0 && !stream()) {
           <div class="starters">
-            <p class="muted small-text">Ask anything you are studying. Everything runs on your local Ollama model.</p>
+            <p class="muted small-text">Ask anything you are studying. Answers come from the AI provider chosen in Settings.</p>
             @for (s of starters; track s) {
               <button type="button" class="btn starter" (click)="send(s)">{{ s }}</button>
             }

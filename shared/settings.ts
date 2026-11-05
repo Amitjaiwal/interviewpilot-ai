@@ -83,6 +83,10 @@ export interface Settings {
     targetRole: string;
     resumeText: string;
   };
+  setup: {
+    /** False only on a new installation, until the first-run setup is finished or skipped. */
+    onboardingDone: boolean;
+  };
 }
 
 /** A deep partial used for settings updates from the renderer. */
@@ -92,6 +96,8 @@ export type SettingsPatch = {
 
 export const DEFAULT_OLLAMA_ENDPOINT = 'http://127.0.0.1:11434';
 export const DEFAULT_WHISPER_URL = 'http://127.0.0.1:8178';
+/** The model offered for one-click download on first run (about 4.7 GB). */
+export const RECOMMENDED_OLLAMA_MODEL = 'qwen2.5:7b';
 export const MAX_RESUME_CHARS = 20_000;
 /** whisper keeps only ~224 prompt tokens. */
 export const MAX_VOCABULARY_CHARS = 600;
@@ -128,6 +134,18 @@ export const DEFAULT_SETTINGS: Settings = {
   },
   privacy: { captureConsent: false, saveHistory: true, historyRetentionDays: 30, saveAudio: false },
   profile: { targetRole: '', resumeText: '' },
+  setup: { onboardingDone: true },
+};
+
+/**
+ * Where a new installation starts. DEFAULT_SETTINGS stays the fallback for anything missing
+ * from an existing settings file, so an upgrade can never move someone from local to online
+ * AI: only a new user starts on Groq, and nothing is sent to it until they add their own key.
+ */
+export const NEW_INSTALL_SETTINGS: Settings = {
+  ...DEFAULT_SETTINGS,
+  ai: { ...DEFAULT_SETTINGS.ai, provider: 'groq' },
+  setup: { onboardingDone: false },
 };
 
 type Obj = Record<string, unknown>;
@@ -192,6 +210,7 @@ export function sanitizeSettings(input: unknown, base: Settings = DEFAULT_SETTIN
   const sc = isObj(s['shortcuts']) ? s['shortcuts'] : {};
   const pr = isObj(s['privacy']) ? s['privacy'] : {};
   const pf = isObj(s['profile']) ? s['profile'] : {};
+  const su = isObj(s['setup']) ? s['setup'] : {};
 
   return {
     ollama: {
@@ -244,6 +263,9 @@ export function sanitizeSettings(input: unknown, base: Settings = DEFAULT_SETTIN
     profile: {
       targetRole: str(pf['targetRole'], base.profile.targetRole, 200),
       resumeText: str(pf['resumeText'], base.profile.resumeText, MAX_RESUME_CHARS),
+    },
+    setup: {
+      onboardingDone: bool(su['onboardingDone'], base.setup.onboardingDone),
     },
   };
 }

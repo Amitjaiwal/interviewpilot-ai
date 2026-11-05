@@ -125,7 +125,7 @@
   <div class="panel-body">
     <app-response-view
       [stream]="stream()"
-      placeholder="Suggested answers and explanations stream here from your local Ollama model."
+      placeholder="Suggested answers and explanations appear here."
       (regenerate)="regenerate()" />
   </div>
 </section>
@@ -136,7 +136,12 @@
       <h3 id="consent-title">Before capturing audio</h3>
       <ul>
         <li><strong>Mic</strong> captures your microphone. <strong>System audio</strong> captures everything your PC plays (for example the other side of a call).</li>
-        <li>Audio is transcribed on this computer by whisper.cpp. Nothing is sent to the internet.</li>
+        <li>Audio is transcribed on this computer by whisper.cpp and is never uploaded.</li>
+        @if (settings().ai.provider === 'groq') {
+          <li>To generate answers, your question, recent transcript text and resume are sent to Groq, your chosen AI provider.</li>
+        } @else {
+          <li>Answers come from Ollama, so nothing is sent to the internet.</li>
+        }
         <li>Audio is not saved unless you turn on <em>Save audio</em> in Settings. Transcripts are kept in local history only while <em>Save history</em> is on.</li>
         <li>A red <strong>REC</strong> indicator is shown whenever capture is active.</li>
         <li>Only record conversations where everyone has agreed to it and where AI assistance is allowed.</li>

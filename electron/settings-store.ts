@@ -1,6 +1,6 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import * as path from 'node:path';
-import { DEFAULT_SETTINGS, Settings, applySettingsPatch, sanitizeSettings } from '../shared/settings';
+import { DEFAULT_SETTINGS, NEW_INSTALL_SETTINGS, Settings, applySettingsPatch, sanitizeSettings } from '../shared/settings';
 
 type Listener = (next: Settings, previous: Settings) => void;
 
@@ -24,6 +24,13 @@ export class SettingsStore {
     } catch {
       this.current = DEFAULT_SETTINGS;
     }
+    return this.current;
+  }
+
+  /** First launch of a new installation. Saved at once, so the next launch sees an existing user. */
+  startNewInstall(): Settings {
+    this.current = NEW_INSTALL_SETTINGS;
+    this.save();
     return this.current;
   }
 

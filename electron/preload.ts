@@ -42,6 +42,9 @@ const api: InterviewPilotApi = {
   ai: {
     status: () => ipcRenderer.invoke(IPC.ollamaStatus),
     setApiKey: (key) => ipcRenderer.invoke(IPC.aiSetApiKey, key),
+    pullRecommendedModel: () => ipcRenderer.invoke(IPC.ollamaPull),
+    cancelPull: () => ipcRenderer.send(IPC.ollamaPullCancel),
+    onPullProgress: (listener) => subscribe(IPC.ollamaPullProgress, listener),
     start: (request) => ipcRenderer.invoke(IPC.aiStart, request),
     cancel: (requestId) => ipcRenderer.send(IPC.aiCancel, requestId),
     onEvent: (listener) => subscribe(IPC.aiEvent, listener),
@@ -55,6 +58,7 @@ const api: InterviewPilotApi = {
     stop: () => ipcRenderer.invoke(IPC.sttStop),
     pushAudio: (source, pcm) => ipcRenderer.send(IPC.sttAudio, source, pcm),
     test: () => ipcRenderer.invoke(IPC.sttTest),
+    micAccess: () => ipcRenderer.invoke(IPC.sttMicAccess),
     onEvent: (listener) => subscribe(IPC.sttEvent, listener),
   },
 

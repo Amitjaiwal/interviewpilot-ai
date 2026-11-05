@@ -9,8 +9,9 @@
 // over the CPU build in bin/. Every download is checked against the SHA-256 that
 // GitHub or Hugging Face publishes for it.
 //
-// Everything lands in tools/whisper (git-ignored). The app looks there by
-// default in development, and electron-builder bundles the CPU build if present.
+// Everything lands in tools/whisper (git-ignored). The app looks there by default
+// in development. The installer bundles the CPU build with base.en and small.en
+// (npm run setup:whisper:installer), and its build fails if they are missing.
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { createReadStream, createWriteStream, existsSync, mkdirSync, readdirSync, renameSync, rmSync, statSync } from 'node:fs';
@@ -45,7 +46,9 @@ async function publishedDigests() {
   const digests = new Map();
   const headers = { 'User-Agent': 'interviewpilot-setup' };
   const get = async (url) => {
-    const res = await fetch(url, { headers });
+    // CI runners share an IP and hit GitHub's anonymous rate limit. The token goes to GitHub only.
+    const token = url.startsWith('https://api.github.com/') ? process.env.GITHUB_TOKEN : undefined;
+    const res = await fetch(url, { headers: { ...headers, ...(token ? { Authorization: `Bearer ${token}` } : {}) } });
     if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
     return res.json();
   };
@@ -80,6 +83,10 @@ async function download(url, dest, expected) {
       throw new Error(`Checksum mismatch for ${url}: expected ${expected}, got ${actual}`);
     }
     console.log('  SHA-256 verified');
+  } else if (process.env.CI) {
+    // A release build ships these files to other people's computers.
+    rmSync(tmp, { force: true });
+    throw new Error(`No published checksum for ${url}; refusing to use an unverified file in CI.`);
   } else {
     console.warn('  No published checksum found; not verified');
   }

@@ -38,32 +38,46 @@
     </div>
   </header>
 
-  <nav class="tabs" aria-label="Sections">
-    @for (t of tabs; track t.id; let i = $index) {
-      <button type="button" [class.on]="tab() === t.id" [attr.aria-current]="tab() === t.id ? 'page' : null" (click)="tab.set(t.id)" [title]="t.label + ' (Ctrl+' + (i + 1) + ')'">
-        {{ t.label }}
-      </button>
+  @if (settingsLoaded()) {
+    @if (onboarding()) {
+      <app-onboarding [toggleShortcut]="toggleShortcut()" />
+    } @else {
+      <nav class="tabs" aria-label="Sections">
+        @for (t of tabs; track t.id; let i = $index) {
+          <button type="button" [class.on]="tab() === t.id" [attr.aria-current]="tab() === t.id ? 'page' : null" (click)="tab.set(t.id)" [title]="t.label + ' (Ctrl+' + (i + 1) + ')'">
+            {{ t.label }}
+          </button>
+        }
+      </nav>
+
+      <section class="status" aria-label="Capture status">
+        <span class="pill" [class.on]="micOn()" [class.off]="!micOn()"><span class="dot"></span>Mic {{ micOn() ? 'on' : 'off' }}</span>
+        <span class="pill" [class.on]="systemOn()" [class.off]="!systemOn()"><span class="dot"></span>System {{ systemOn() ? 'on' : 'off' }}</span>
+        <span class="pill" [class.warn]="transcript.status().engine === 'starting'" [class.bad]="transcript.status().engine === 'error'" [class.ok]="transcript.status().engine === 'ready'">
+          <span class="dot"></span>{{ sttLabel() }}
+        </span>
+        <button type="button" class="pill as-btn" [class.ok]="ollamaOk()" [class.bad]="!ollamaOk() && !!ai.status()" (click)="tab.set('settings')" [title]="ai.status()?.error || (ai.status()?.provider === 'groq' ? 'Groq: ' + ai.status()?.activeModel : 'Ollama connection')">
+          <span class="dot"></span>{{ ollamaLabel() }}
+        </button>
+      </section>
+
+      @if (ai.needsSetup() && tab() !== 'settings') {
+        <button type="button" class="setup-banner" (click)="tab.set('settings')">
+          AI answers need a one-time setup. <strong>Set up now</strong>
+        </button>
+      }
+
+      <main class="views">
+        <app-live [hidden]="tab() !== 'live'" />
+        <app-chat [hidden]="tab() !== 'chat'" />
+        <app-practice [hidden]="tab() !== 'practice'" />
+        <app-history [hidden]="tab() !== 'history'" [active]="tab() === 'history'" />
+        <app-settings [hidden]="tab() !== 'settings'" [active]="tab() === 'settings'" />
+      </main>
     }
-  </nav>
-
-  <section class="status" aria-label="Capture status">
-    <span class="pill" [class.on]="micOn()" [class.off]="!micOn()"><span class="dot"></span>Mic {{ micOn() ? 'on' : 'off' }}</span>
-    <span class="pill" [class.on]="systemOn()" [class.off]="!systemOn()"><span class="dot"></span>System {{ systemOn() ? 'on' : 'off' }}</span>
-    <span class="pill" [class.warn]="transcript.status().engine === 'starting'" [class.bad]="transcript.status().engine === 'error'" [class.ok]="transcript.status().engine === 'ready'">
-      <span class="dot"></span>{{ sttLabel() }}
-    </span>
-    <button type="button" class="pill as-btn" [class.ok]="ollamaOk()" [class.bad]="!ollamaOk() && !!ai.status()" (click)="tab.set('settings')" [title]="ai.status()?.error || (ai.status()?.provider === 'groq' ? 'Groq: ' + ai.status()?.activeModel : 'Ollama connection')">
-      <span class="dot"></span>{{ ollamaLabel() }}
-    </button>
-  </section>
-
-  <main class="views">
-    <app-live [hidden]="tab() !== 'live'" />
-    <app-chat [hidden]="tab() !== 'chat'" />
-    <app-practice [hidden]="tab() !== 'practice'" />
-    <app-history [hidden]="tab() !== 'history'" [active]="tab() === 'history'" />
-    <app-settings [hidden]="tab() !== 'settings'" [active]="tab() === 'settings'" />
-  </main>
+  } @else {
+    <div class="views"></div>
+  }
 
   <footer class="footer">
     @if (info(); as i) {

@@ -93,6 +93,10 @@ summary {
   color: var(--text-faint);
 }
 
+.hint a {
+  color: var(--accent);
+}
+
 .shortcut {
   display: flex;
   align-items: center;

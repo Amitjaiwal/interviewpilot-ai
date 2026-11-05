@@ -22,10 +22,25 @@ export async function waitFor(fn, timeoutMs, label) {
  * Launch the app; extra Chromium switches go in `args`. Set E2E_APP_EXE to a
  * packaged InterviewPilot AI.exe (npm run test:e2e:packaged) to test the
  * installed build instead of the project folder.
+ *
+ * It starts as an existing user on local AI, which is what most scripts exercise.
+ * Options:
+ *   newUser   leave the data folder empty, so the first-run setup appears
+ *   userData  reuse a data folder, to test a restart
+ *   keepData  keep the data folder after close()
+ *   env       extra environment variables, replacing any of the same name
  */
-export function launch(args = [], port = 9333) {
-  const userData = mkdtempSync(join(tmpdir(), 'ip-e2e-'));
-  const env = { ...process.env, INTERVIEWPILOT_USER_DATA: userData };
+export function launch(args = [], port = 9333, { newUser = false, userData: reuse, keepData = false, env: extraEnv = {} } = {}) {
+  const userData = reuse ?? mkdtempSync(join(tmpdir(), 'ip-e2e-'));
+  if (!reuse && !newUser) {
+    writeFileSync(join(userData, 'settings.json'), JSON.stringify({ ai: { provider: 'local' }, setup: { onboardingDone: true } }));
+  }
+  const env = { ...process.env };
+  for (const key of Object.keys(env)) {
+    // Windows treats variable names case-insensitively, and PATH is often spelled "Path".
+    if (Object.keys(extraEnv).some((k) => k.toLowerCase() === key.toLowerCase())) delete env[key];
+  }
+  Object.assign(env, extraEnv, { INTERVIEWPILOT_USER_DATA: userData });
   delete env.ELECTRON_RUN_AS_NODE;
   delete env.ELECTRON_START_URL;
   const exe = process.env.E2E_APP_EXE;
@@ -41,7 +56,7 @@ export function launch(args = [], port = 9333) {
       proc.kill();
       await sleep(1000);
       if (process.env.E2E_KEEP_DATA) console.log(`Data folder kept: ${userData}`);
-      else rmSync(userData, { recursive: true, force: true });
+      else if (!keepData) rmSync(userData, { recursive: true, force: true });
     },
   };
 }

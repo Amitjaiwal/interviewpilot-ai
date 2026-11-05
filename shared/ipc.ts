@@ -27,6 +27,9 @@ export const IPC = {
   shortcutStatus: 'settings:shortcut-status',
 
   ollamaStatus: 'ollama:status',
+  ollamaPull: 'ollama:pull',
+  ollamaPullCancel: 'ollama:pull-cancel',
+  ollamaPullProgress: 'ollama:pull-progress',
   aiSetApiKey: 'ai:set-api-key',
   aiStart: 'ai:start',
   aiCancel: 'ai:cancel',
@@ -40,6 +43,7 @@ export const IPC = {
   sttAudio: 'stt:audio',
   sttEvent: 'stt:event',
   sttTest: 'stt:test',
+  sttMicAccess: 'stt:mic-access',
 
   historyList: 'history:list',
   historyGet: 'history:get',
@@ -80,6 +84,17 @@ export interface OllamaStatus {
   /** True when a configured model is not installed. */
   modelMissing: boolean;
   error?: string;
+  /** Groq refused the API key, as opposed to being unreachable. */
+  keyRejected?: boolean;
+  /** Local provider: Ollama's program was found on this PC, even if it is not running. */
+  installed?: boolean;
+}
+
+/** One progress report from Ollama while it downloads a model. */
+export interface ModelPullProgress {
+  status: string;
+  completed?: number;
+  total?: number;
 }
 
 /**
@@ -249,8 +264,16 @@ export interface InterviewPilotApi {
 
   ai: {
     status(): Promise<AiStatus>;
-    /** Store (encrypted) or, with an empty string, remove the Groq API key. */
+    /**
+     * Store (encrypted) or, with an empty string, remove the Groq API key. Rejects without
+     * saving if Groq refuses the key; a key that cannot be checked right now (no internet) is saved.
+     */
     setApiKey(key: string): Promise<AiStatus>;
+    /** Download the recommended model with Ollama and resolve with the new status; progress arrives via onPullProgress. */
+    pullRecommendedModel(): Promise<AiStatus>;
+    /** Stop the download. Ollama keeps what it has and resumes from there next time. */
+    cancelPull(): void;
+    onPullProgress(listener: (progress: ModelPullProgress) => void): () => void;
     /** Starts a streamed request and resolves with its id; output arrives via onEvent. */
     start(request: AiRequest): Promise<string>;
     cancel(requestId: string): void;
@@ -267,6 +290,8 @@ export interface InterviewPilotApi {
     pushAudio(source: AudioSource, pcm: ArrayBuffer): void;
     /** Start the engine (if needed) and report whether it answers. */
     test(): Promise<SttStatus>;
+    /** Whether Windows lets apps use the microphone: 'granted', 'denied', 'restricted', 'not-determined' or 'unknown'. */
+    micAccess(): Promise<string>;
     onEvent(listener: (event: SttEvent) => void): () => void;
   };
 

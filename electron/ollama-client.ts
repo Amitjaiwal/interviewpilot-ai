@@ -1,4 +1,6 @@
-import type { AiErrorCode, OllamaModel, OllamaStatus } from '../shared/ipc';
+import { existsSync } from 'node:fs';
+import * as path from 'node:path';
+import type { AiErrorCode, ModelPullProgress, OllamaModel, OllamaStatus } from '../shared/ipc';
 
 export interface OllamaMessage {
   role: 'system' | 'user' | 'assistant';
@@ -19,6 +21,8 @@ export class OllamaError extends Error {
     super(message);
   }
 }
+
+export const NO_MODEL_MESSAGE = 'No AI model installed yet. Download one in Settings › AI model.';
 
 const STATUS_TIMEOUT_MS = 3000;
 /** Give a cold model this long to produce its first token before failing. */
@@ -61,7 +65,7 @@ export class OllamaClient {
         error: resolved.missing
           ? `Model "${configuredModel}" is not installed. Run: ollama pull ${configuredModel}`
           : models.length === 0
-            ? 'No models installed. Run: ollama pull qwen2.5:7b'
+            ? NO_MODEL_MESSAGE
             : undefined,
       };
     } catch (err) {
@@ -157,11 +161,72 @@ export class OllamaClient {
     await res.text();
   }
 
+  /**
+   * Download a model, reporting Ollama's progress lines. There is no overall timeout: a
+   * multi-gigabyte download can take hours. Ollama keeps partial downloads, so pulling again resumes.
+   */
+  async pull(endpoint: string, model: string, onProgress: (p: ModelPullProgress) => void, signal: AbortSignal): Promise<void> {
+    let res: Response;
+    try {
+      res = await this.fetchImpl(`${endpoint}/api/pull`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model, stream: true }),
+        signal,
+      });
+    } catch (err) {
+      if (signal.aborted) throw new OllamaError('aborted', 'Cancelled');
+      throw new OllamaError('unreachable', describeConnectionError(endpoint, err));
+    }
+    if (!res.ok || !res.body) {
+      const detail = await res.text().catch(() => '');
+      throw new OllamaError('http', parseError(detail) ?? `Ollama returned HTTP ${res.status}`);
+    }
+
+    let succeeded = false;
+    let buffer = '';
+    const decoder = new TextDecoder();
+    const reader = res.body.getReader();
+    try {
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        let newline: number;
+        while ((newline = buffer.indexOf('\n')) >= 0) {
+          const line = buffer.slice(0, newline).trim();
+          buffer = buffer.slice(newline + 1);
+          if (!line) continue;
+          const msg = JSON.parse(line) as { status?: string; completed?: number; total?: number; error?: string };
+          if (msg.error) throw new OllamaError('http', msg.error);
+          if (!msg.status) continue;
+          if (msg.status === 'success') succeeded = true;
+          onProgress({ status: msg.status, completed: msg.completed, total: msg.total });
+        }
+      }
+    } catch (err) {
+      if (err instanceof OllamaError) throw err;
+      if (signal.aborted) throw new OllamaError('aborted', 'Cancelled');
+      throw new OllamaError('http', `The download was interrupted (${err instanceof Error ? err.message : String(err)}). Press Download again to resume.`);
+    }
+    // Without Ollama's final "success" line the model is not usable yet.
+    if (!succeeded) throw new OllamaError('http', 'The download ended early. Press Download again to resume.');
+  }
+
   private async getJson<T>(url: string): Promise<T> {
     const res = await this.fetchImpl(url, { signal: AbortSignal.timeout(STATUS_TIMEOUT_MS) });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return (await res.json()) as T;
   }
+}
+
+/** Whether Ollama's program is on this PC: in the folder its Windows installer uses, or on the PATH. */
+export function isOllamaInstalled(env: NodeJS.ProcessEnv = process.env): boolean {
+  const folders = [
+    env['LOCALAPPDATA'] ? path.join(env['LOCALAPPDATA'], 'Programs', 'Ollama') : '',
+    ...(env['PATH'] ?? '').split(path.delimiter),
+  ];
+  return folders.some((folder) => !!folder && existsSync(path.join(folder, 'ollama.exe')));
 }
 
 /** Use the configured model when installed; otherwise fall back to the first installed one. */
@@ -185,7 +250,7 @@ function parseError(body: string): string | undefined {
 function describeConnectionError(endpoint: string, err: unknown): string {
   const cause = err instanceof Error ? ((err.cause as Error | undefined)?.message ?? err.message) : String(err);
   if (/ECONNREFUSED|fetch failed/i.test(cause)) {
-    return `Cannot reach Ollama at ${endpoint}. Is it running? Start it with "ollama serve" or the Ollama app.`;
+    return `Cannot reach Ollama at ${endpoint}. Install it from ollama.com/download, or start the Ollama app if you already have it. Settings › AI model has the steps.`;
   }
   if (/abort|timeout/i.test(cause)) return `Ollama at ${endpoint} did not answer within ${STATUS_TIMEOUT_MS / 1000}s.`;
   return `Cannot reach Ollama at ${endpoint}: ${cause}`;
