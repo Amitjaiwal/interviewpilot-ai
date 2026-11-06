@@ -42,6 +42,14 @@ describe('sanitizeSettings', () => {
     const s = sanitizeSettings({ profile: { resumeText: 'x'.repeat(50_000) } });
     expect(s.profile.resumeText.length).toBe(20_000);
   });
+
+  it('turns auto-answer on only when no valid value is saved', () => {
+    expect(DEFAULT_SETTINGS.ai.autoAnswer).toBe(true);
+    expect(sanitizeSettings({}).ai.autoAnswer).toBe(true);
+    expect(sanitizeSettings({ ai: { provider: 'groq' } }).ai.autoAnswer).toBe(true);
+    expect(sanitizeSettings({ ai: { autoAnswer: 'no' } }).ai.autoAnswer).toBe(true);
+    expect(sanitizeSettings({ ai: { autoAnswer: false } }).ai.autoAnswer).toBe(false);
+  });
 });
 
 describe('sanitizeUrl', () => {
@@ -90,6 +98,12 @@ describe('applySettingsPatch', () => {
     const next = applySettingsPatch(DEFAULT_SETTINGS, { stt: { sources: { mic: false, system: true } } });
     expect(next.stt.sources).toEqual({ mic: false, system: true });
     expect(next.stt.silenceMs).toBe(DEFAULT_SETTINGS.stt.silenceMs);
+  });
+
+  it('keeps auto-answer off when another setting changes', () => {
+    const off = applySettingsPatch(DEFAULT_SETTINGS, { ai: { autoAnswer: false } });
+    expect(off.ai.autoAnswer).toBe(false);
+    expect(applySettingsPatch(off, { ai: { responseLength: 'short' }, overlay: { opacity: 0.8 } }).ai.autoAnswer).toBe(false);
   });
 
   it('ignores non-object patches', () => {

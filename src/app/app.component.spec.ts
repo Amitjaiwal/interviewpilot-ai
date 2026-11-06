@@ -160,8 +160,57 @@ describe('AppComponent', () => {
     expect((fixture.nativeElement as HTMLElement).querySelector('.status')?.textContent).toContain('AI: qwen2.5:7b');
   });
 
+  describe('the auto-answer checkbox', () => {
+    const checkbox = async (fixture: Awaited<ReturnType<typeof render>>) => {
+      fixture.componentInstance.tab.set('settings');
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      const labels = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('app-settings label.toggle'));
+      return labels.find((l) => l.textContent?.includes('Answer automatically'))!.querySelector('input')!;
+    };
+
+    it('is ticked on first open, and a detected question is answered without a click', async () => {
+      const fixture = await render();
+      expect((await checkbox(fixture)).checked).toBeTrue();
+      fake.emitStt({ type: 'final', source: 'system', segmentId: 's1', text: 'What is a Java record?', at: 1_000, question: true });
+      await fixture.whenStable();
+      expect(fake.aiRequests).toEqual([jasmine.objectContaining({ mode: 'answer', input: 'What is a Java record?', kind: 'live' })]);
+    });
+
+    it('stops answering when unticked, and the buttons still answer', async () => {
+      const fixture = await render();
+      (await checkbox(fixture)).click();
+      await fixture.whenStable();
+      fixture.detectChanges();
+      expect(fake.settings.ai.autoAnswer).toBeFalse();
+
+      fake.emitStt({ type: 'final', source: 'system', segmentId: 's1', text: 'What is a Java record?', at: 1_000, question: true });
+      fake.emitStt({ type: 'final', source: 'system', segmentId: 's2', text: 'Program using streams.', at: 20_000, question: false });
+      // A pending answer would be a timer, which whenStable waits for.
+      await fixture.whenStable();
+      expect(fake.aiRequests.length).toBe(0);
+
+      fixture.componentInstance.tab.set('live');
+      fixture.detectChanges();
+      (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('app-live .ask .btn.primary')!.click();
+      await fixture.whenStable();
+      expect(fake.aiRequests.length).toBe(1);
+    });
+
+    it('stays unticked when it was saved off', async () => {
+      fake.setSettings({ ai: { ...fake.settings.ai, autoAnswer: false } });
+      const fixture = await render();
+      expect((await checkbox(fixture)).checked).toBeFalse();
+      fake.emitStt({ type: 'final', source: 'system', segmentId: 's1', text: 'What is a Java record?', at: 1_000, question: true });
+      await fixture.whenStable();
+      expect(fake.aiRequests.length).toBe(0);
+    });
+  });
+
   it('answers the last detected question from the global shortcut', async () => {
     const fixture = await render();
+    await TestBed.inject(SettingsService).update({ ai: { autoAnswer: false } });
     fake.emitStt({ type: 'final', source: 'system', segmentId: 's1', text: 'What is a Java record?', at: 1, question: true });
     fake.emitShortcut('askAi');
     await fixture.whenStable();
@@ -171,6 +220,7 @@ describe('AppComponent', () => {
 
   it('answers the newest question from the shortcut, not the stale text in the question box', async () => {
     const fixture = await render();
+    await TestBed.inject(SettingsService).update({ ai: { autoAnswer: false } });
     fake.emitStt({ type: 'final', source: 'mic', segmentId: 's1', text: 'What is a Java record?', at: 1_000, question: true });
     fake.emitShortcut('askAi');
     fake.emitStt({ type: 'final', source: 'mic', segmentId: 's2', text: 'What is a sealed class?', at: 60_000, question: true });
@@ -241,6 +291,7 @@ describe('AppComponent', () => {
 
   it('answers what was said after the last question instead of repeating that question', async () => {
     const fixture = await render();
+    await TestBed.inject(SettingsService).update({ ai: { autoAnswer: false } });
     fake.emitStt({ type: 'final', source: 'system', segmentId: 's1', text: 'What is a Java record?', at: 1_000, question: true });
     fake.emitShortcut('askAi');
     // A coding task given in plain sentences, with an acknowledgement in between.

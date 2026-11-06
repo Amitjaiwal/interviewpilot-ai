@@ -12,7 +12,7 @@ Built with Electron 33, Angular 18 and TypeScript.
 
 You don't need Node.js, npm, the source code or a terminal.
 
-1. Open the [latest release](https://github.com/Amitjaiwal/interviewpilot-ai/releases/latest) and, under **Assets**, download **`InterviewPilot-AI-Setup-1.0.0.exe`** (about 610 MB). Don't use *Code › Download ZIP*: that is the source code, not the app.
+1. Open the [latest release](https://github.com/Amitjaiwal/interviewpilot-ai/releases/latest) and, under **Assets**, download **`InterviewPilot-AI-Setup-1.0.1.exe`** (about 610 MB). Don't use *Code › Download ZIP*: that is the source code, not the app.
 2. Double-click the file. The installer isn't code-signed yet, so Windows may say "Windows protected your PC". Click **More info**, then **Run anyway**.
 3. Follow the installer. Choosing "Only for me" needs no administrator rights.
 4. Start **InterviewPilot AI** from the Start menu or your desktop.
@@ -108,6 +108,7 @@ Then press **Start** on the Live tab. The first time, the app explains what will
 | `npm run test:e2e:packaged` | Run the end-to-end suite against `release\win-unpacked\InterviewPilot AI.exe` (after `dist` or `dist:dir`) |
 | `npm run test:first-run` | Walk through the Ollama setup steps in the real app, against a fake Ollama |
 | `npm run test:onboarding` | Walk through the first-launch setup and the AI provider scenarios in the real app, against a fake Groq and the real Ollama if it is running |
+| `npm run test:auto-answer` | Check automatic answers in the real app with real speech recognition, against a fake Groq and a fake Ollama |
 | `npm run icon` | Regenerate `build/icon.ico` |
 
 ## Using the app
@@ -120,7 +121,7 @@ Then press **Start** on the Live tab. The first time, the app explains what will
 4. The response streams in with Markdown and code blocks. **Copy**, **Regenerate**, **Stop** and **Retry** are on the response. The view does not follow the newest text: an answer starts at the top of its panel, new text is added below without moving what you are reading, and you can scroll freely while it keeps generating. This works the same in Chat and Practice.
 5. **Pause** flushes the current sentence and stops sending audio; **Stop** releases the devices.
 
-Turn on *Answer automatically when a question is detected* in Settings to get an answer as soon as a question is recognised (with both sources active, only questions from system audio trigger it). Questions, requests ("Explain...", "Tell me...") and coding tasks ("You need to find...", "Take a list of...") are answered at once. With *Answer every line* (on by default) every other line is answered too, about 2.5 s after the speaker pauses, so nothing is skipped; a follow-up right after a question is answered together with it, and acknowledgements such as "Mm-hmm." or "Okay, that's great." are skipped. Turn it off to answer only lines that look like questions.
+*Answer automatically when a question is detected* (Settings › AI model) is on by default, so an answer starts as soon as a question is recognised, without a click (with both sources active, only questions from system audio trigger it). If you turn it off, it stays off, and the buttons above still work. Questions, requests ("Explain...", "Tell me...") and coding tasks ("You need to find...", "Take a list of...") are answered at once. With *Answer every line* (on by default) every other line is answered too, about 2.5 s after the speaker pauses, so nothing is skipped; a follow-up right after a question is answered together with it, and acknowledgements such as "Mm-hmm." or "Okay, that's great." are skipped. Turn it off to answer only lines that look like questions.
 
 ### Practice tab
 
@@ -230,7 +231,7 @@ Audio and transcription stay on your computer. Where AI answers come from depend
 | Settings, resume text | `%APPDATA%\InterviewPilot AI\settings.json` | When changed | Settings › Profile › Clear, or delete the file |
 | Log | `%APPDATA%\InterviewPilot AI\logs\main.log` (max ~2 MB) | Always | Delete the file. It contains events and errors only: no transcripts, prompts, answers or resume text |
 | Groq API key | `%APPDATA%\InterviewPilot AI\secrets.json`, encrypted with Windows DPAPI through Electron's safeStorage | When you save it | Settings › AI model › Remove |
-| AI requests | Groq: sent to `api.groq.com`. Ollama: sent to the configured endpoint, this computer by default | When you ask, or automatically with auto-answer | Choose the provider in Settings › AI model. Settings warns if an Ollama endpoint is not on this computer |
+| AI requests | Groq: sent to `api.groq.com`. Ollama: sent to the configured endpoint, this computer by default | Automatically while capturing, with auto-answer (on by default), and when you ask | Choose the provider in Settings › AI model. Settings warns if an Ollama endpoint is not on this computer |
 
 Uninstalling keeps `%APPDATA%\InterviewPilot AI`; delete that folder to remove all data.
 
@@ -301,7 +302,7 @@ Packaging is configured in the `build` section of `package.json` (electron-build
 
 1. Develop as usual: `npm run dev` (live reload) or `npm start` (production build in the project folder). Close the installed app first, because only one copy runs at a time.
 2. Test: `npm test`, and `npm run build; npm run test:e2e` for the end-to-end suite.
-3. Bump the version: `npm version 1.0.1 --no-git-tag-version`. The version appears in the installer's file name and in **Installed apps**.
+3. Bump the version: `npm version 1.0.2 --no-git-tag-version`. The version appears in the installer's file name and in **Installed apps**.
 4. Build the installer:
 
    ```powershell
@@ -325,13 +326,13 @@ The repository must be **public** for people to download from its Releases page:
 
 ```powershell
 git push origin installer-1.0
-git tag v1.0.0            # must match "version" in package.json
-git push origin v1.0.0
+git tag v1.0.1            # must match "version" in package.json
+git push origin v1.0.1
 ```
 
 Wait for the run on the repository's **Actions** tab (about 15 minutes), then open **Releases**, check the draft and press **Publish release**.
 
-**By hand.** Build with `npm run dist`, then on GitHub choose **Releases › Draft a new release**, create the tag `v1.0.0` on the `installer-1.0` branch, paste `.github/release-notes.md` as the description, attach `release\InterviewPilot-AI-Setup-1.0.0.exe` and publish. GitHub allows up to 2 GB per file.
+**By hand.** Build with `npm run dist`, then on GitHub choose **Releases › Draft a new release**, create the tag `v1.0.1` on the `installer-1.0` branch, paste `.github/release-notes.md` as the description, attach `release\InterviewPilot-AI-Setup-1.0.1.exe` and publish. GitHub allows up to 2 GB per file.
 
 ### Checking an installer before you publish it
 
@@ -353,6 +354,7 @@ The development PC hides problems, because it has Node.js, the C++ runtime and o
 | Loopback | `npm run test:loopback` | real WASAPI loopback transcription |
 | First run | `npm run build; npm run test:first-run` | the Ollama setup steps in Settings, against a fake Ollama: banner, install step, model download with progress and cancel |
 | Onboarding | `npm run build; npm run test:onboarding` | first-launch setup and provider scenarios: new install on Groq, no key, rejected key, valid key, lost connection and restart against a fake Groq, the key never exposed to the renderer or stored in plain text, switching to real Ollama, Ollama missing or not running. With `E2E_APP_EXE` it runs what needs no valid key, against the real Groq API |
+| Auto-answer | `npm run build; npm run test:auto-answer` | the Settings checkbox on a new install, an upgrade and after restarts; speech from a fake microphone answered without a click on Groq and Ollama; turning it off stops that, stays off after a restart, and leaves Suggest answer working |
 
 ## Troubleshooting
 

@@ -36,6 +36,30 @@ describe('a new installation', () => {
     first.update({ setup: { onboardingDone: true } });
     expect(new SettingsStore(file).load().setup.onboardingDone).toBe(true);
   });
+
+  it('starts with auto-answer on, saved at once, and still on after a restart', () => {
+    expect(new SettingsStore(file).startNewInstall().ai.autoAnswer).toBe(true);
+    expect(JSON.parse(readFileSync(file, 'utf8')).ai.autoAnswer).toBe(true);
+    expect(new SettingsStore(file).load().ai.autoAnswer).toBe(true);
+  });
+});
+
+describe('turning auto-answer off', () => {
+  it('stays off after restarts, whatever else changes, until turned back on', () => {
+    const first = new SettingsStore(file);
+    first.startNewInstall();
+    first.update({ ai: { autoAnswer: false } });
+    expect(JSON.parse(readFileSync(file, 'utf8')).ai.autoAnswer).toBe(false);
+
+    const second = new SettingsStore(file);
+    expect(second.load().ai.autoAnswer).toBe(false);
+    second.update({ ai: { responseLength: 'short' }, setup: { onboardingDone: true } });
+
+    const third = new SettingsStore(file);
+    expect(third.load().ai.autoAnswer).toBe(false);
+    third.update({ ai: { autoAnswer: true } });
+    expect(new SettingsStore(file).load().ai.autoAnswer).toBe(true);
+  });
 });
 
 describe('upgrading an existing installation', () => {
@@ -76,5 +100,19 @@ describe('upgrading an existing installation', () => {
     const s = new SettingsStore(file).load();
     expect(s.ai.provider).toBe('local');
     expect(s.setup.onboardingDone).toBe(true);
+  });
+
+  it('keeps a saved auto-answer choice, on or off', () => {
+    writeFileSync(file, JSON.stringify({ ai: { provider: 'groq', autoAnswer: false } }));
+    expect(new SettingsStore(file).load().ai.autoAnswer).toBe(false);
+    writeFileSync(file, JSON.stringify({ ai: { provider: 'local', autoAnswer: true } }));
+    expect(new SettingsStore(file).load().ai.autoAnswer).toBe(true);
+  });
+
+  it('turns auto-answer on when nothing was saved for it', () => {
+    writeFileSync(file, JSON.stringify({ ai: { provider: 'local' } }));
+    expect(new SettingsStore(file).load().ai.autoAnswer).toBe(true);
+    rmSync(file);
+    expect(new SettingsStore(file).load().ai.autoAnswer).toBe(true);
   });
 });

@@ -1,7 +1,7 @@
 {
   "name": "interviewpilot",
   "productName": "InterviewPilot AI",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "AI interview assistant for Windows: live transcription with whisper.cpp and answers from Groq or Ollama",
   "author": "InterviewPilot AI",
   "main": "dist-electron/main.js",
@@ -23,6 +23,7 @@
     "test:protection": "node tests/e2e/content-protection.mjs",
     "test:first-run": "node tests/e2e/first-run.mjs",
     "test:onboarding": "node tests/e2e/onboarding.mjs",
+    "test:auto-answer": "node tests/e2e/auto-answer.mjs",
     "setup:whisper": "node scripts/setup-whisper.mjs",
     "setup:whisper:installer": "node scripts/setup-whisper.mjs --model base.en && node scripts/setup-whisper.mjs --model small.en",
     "icon": "node scripts/make-icon.mjs",

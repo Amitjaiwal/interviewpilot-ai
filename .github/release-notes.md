@@ -1,3 +1,8 @@
+## What's new in 1.0.1
+
+- Answers now start automatically: when a question is detected in the transcript, the answer appears without a click. To turn this off, untick *Answer automatically when a question is detected in the transcript* in Settings › AI model. It stays off until you tick it again.
+- **Updating from 1.0.0?** Your settings are kept, including this box, which 1.0.0 left unticked. Tick it once in Settings › AI model.
+
 ## Install
 
 You don't need Node.js, npm, the source code or a terminal.

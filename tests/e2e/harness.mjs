@@ -23,7 +23,8 @@ export async function waitFor(fn, timeoutMs, label) {
  * packaged InterviewPilot AI.exe (npm run test:e2e:packaged) to test the
  * installed build instead of the project folder.
  *
- * It starts as an existing user on local AI, which is what most scripts exercise.
+ * It starts as an existing user on local AI, which is what most scripts exercise,
+ * with auto-answer off so that AI requests happen only when a script makes them.
  * Options:
  *   newUser   leave the data folder empty, so the first-run setup appears
  *   userData  reuse a data folder, to test a restart
@@ -33,7 +34,7 @@ export async function waitFor(fn, timeoutMs, label) {
 export function launch(args = [], port = 9333, { newUser = false, userData: reuse, keepData = false, env: extraEnv = {} } = {}) {
   const userData = reuse ?? mkdtempSync(join(tmpdir(), 'ip-e2e-'));
   if (!reuse && !newUser) {
-    writeFileSync(join(userData, 'settings.json'), JSON.stringify({ ai: { provider: 'local' }, setup: { onboardingDone: true } }));
+    writeFileSync(join(userData, 'settings.json'), JSON.stringify({ ai: { provider: 'local', autoAnswer: false }, setup: { onboardingDone: true } }));
   }
   const env = { ...process.env };
   for (const key of Object.keys(env)) {

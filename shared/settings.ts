@@ -31,7 +31,7 @@ export interface Settings {
     /** Groq model id; empty means the app default. The API key is stored separately, encrypted. */
     groqModel: string;
     responseLength: ResponseLength;
-    /** Answer automatically when a question is detected in meeting audio. */
+    /** Answer automatically when a question is detected in meeting audio. On unless a saved value says otherwise. */
     autoAnswer: boolean;
     /** With autoAnswer: also answer lines that are not questions, once the speaker pauses. Fillers are skipped. */
     answerEveryLine: boolean;
@@ -111,7 +111,7 @@ export const DEFAULT_VOCABULARY =
 
 export const DEFAULT_SETTINGS: Settings = {
   ollama: { endpoint: DEFAULT_OLLAMA_ENDPOINT, model: '', temperature: 0.4 },
-  ai: { provider: 'local', groqModel: '', responseLength: 'medium', autoAnswer: false, answerEveryLine: true, customInstructions: '' },
+  ai: { provider: 'local', groqModel: '', responseLength: 'medium', autoAnswer: true, answerEveryLine: true, customInstructions: '' },
   stt: {
     mode: 'managed',
     serverPath: '',
