@@ -7,10 +7,10 @@
 
 You don't need Node.js, npm, the source code or a terminal.
 
-1. Under **Assets** below, download **InterviewPilot-AI-Setup-x.y.z.exe** (about 610 MB). You don't need the "Source code" files.
+1. Under **Assets** below, download **Orbit-Setup-x.y.z.exe** (about 610 MB). You don't need the "Source code" files.
 2. Double-click it. The installer isn't code-signed yet, so Windows may say "Windows protected your PC". Click **More info**, then **Run anyway**.
 3. Follow the installer. Choosing "Only for me" needs no administrator rights.
-4. Start **InterviewPilot AI** from the Start menu or your desktop.
+4. Start **Orbit** from the Start menu or your desktop.
 
 **Requires** Windows 10 (version 2004 or newer) or Windows 11, 64-bit, and about 1 GB of disk space.
 
@@ -29,9 +29,9 @@ An API key is like a long password that lets the app use your own Groq account. 
 
 1. In the app's setup, click **Open the Groq console**. If you skipped the setup, go to [console.groq.com/keys](https://console.groq.com/keys) in your browser.
 2. Click **Log In**. If you're new to Groq, create a free account.
-3. Click **Create API Key**. If it asks for a name, type anything, such as `InterviewPilot`.
+3. Click **Create API Key**. If it asks for a name, type anything, such as `Orbit`.
 4. Copy the key, which starts with `gsk_`. Do it straight away, as you may not be able to see it again. If you lose it, just create a new one.
-5. Go back to InterviewPilot AI, click the key box and press **Ctrl+V**. Right-clicking won't offer Paste. The app's window stays on top, so if it covers the Groq page, drag it aside by its title bar.
+5. Go back to Orbit, click the key box and press **Ctrl+V**. Right-clicking won't offer Paste. The app's window stays on top, so if it covers the Groq page, drag it aside by its title bar.
 6. Click **Save and test**. When you see "Connected to Groq", you're done.
 
 If you skipped the setup, the same key box is in Settings › AI model, with *Online (Groq)* selected as the provider.
@@ -46,4 +46,4 @@ Your key is stored encrypted on your PC and only ever sent to Groq. Each person 
 ## Update or uninstall
 
 - **Update:** run the newer installer. Your AI provider, key, settings and history are kept.
-- **Uninstall:** Windows Settings › Apps › Installed apps › InterviewPilot AI › Uninstall. Your settings, key and history stay in `%APPDATA%\InterviewPilot AI`. Delete that folder to remove them too.
+- **Uninstall:** Windows Settings › Apps › Installed apps › Orbit › Uninstall. Your settings, key and history stay in `%APPDATA%\InterviewPilot AI`. Delete that folder to remove them too.

@@ -39,7 +39,7 @@ export class WindowManager {
       alwaysOnTop: overlay.alwaysOnTop,
       show: false,
       backgroundColor: '#0f1115',
-      title: 'InterviewPilot AI',
+      title: 'Orbit',
       webPreferences: {
         preload: path.join(__dirname, 'preload.js'),
         contextIsolation: true,

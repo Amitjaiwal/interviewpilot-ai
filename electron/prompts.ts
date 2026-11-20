@@ -39,7 +39,7 @@ const MAX_CONTEXT_IN_PROMPT = 3000;
 function persona(settings: Settings): string {
   const role = settings.profile.targetRole.trim();
   return (
-    'You are InterviewPilot, a precise technical interview coach for software engineers' +
+    'You are Orbit, a precise technical interview coach for software engineers' +
     (role ? `, currently helping a candidate preparing for a "${role}" role` : '') +
     '. Be accurate; if a question is ambiguous, state the assumption you make.'
   );

@@ -174,10 +174,10 @@ export class WhisperEngine {
       return this.fail(`Whisper model not found at ${config.modelPath}`);
     }
     if (!serverPath) {
-      return this.fail('The speech engine is missing. Reinstall InterviewPilot AI, or set the whisper-server path in Settings. (Developers: npm run setup:whisper)');
+      return this.fail('The speech engine is missing. Reinstall Orbit, or set the whisper-server path in Settings. (Developers: npm run setup:whisper)');
     }
     if (!modelPath) {
-      return this.fail('The speech model is missing. Reinstall InterviewPilot AI, or set the model file in Settings. (Developers: npm run setup:whisper)');
+      return this.fail('The speech model is missing. Reinstall Orbit, or set the model file in Settings. (Developers: npm run setup:whisper)');
     }
 
     const port = await freePort();

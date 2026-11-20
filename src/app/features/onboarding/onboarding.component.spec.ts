@@ -64,7 +64,7 @@ describe('First-run setup', () => {
   afterEach(() => TestBed.resetTestingModule());
 
   it('replaces the main view on a new installation', () => {
-    expect(text()).toContain('Welcome to InterviewPilot AI');
+    expect(text()).toContain('Welcome to Orbit');
     expect(el().querySelector('.tabs')).toBeNull();
     expect(el().querySelector('app-live')).toBeNull();
     expect(el().querySelector('.footer kbd')?.textContent).toContain('Ctrl+Shift+Space');
@@ -126,7 +126,7 @@ describe('First-run setup', () => {
     expect(text()).toContain('Groq Cloud AI is ready');
     expect(text()).toContain('Ctrl+Shift+Space');
 
-    await press('Start using InterviewPilot AI');
+    await press('Start using Orbit');
     expect(fake.settings.setup.onboardingDone).toBeTrue();
     expect(el().querySelector('app-onboarding')).toBeNull();
     expect(el().querySelector('.tabs')).not.toBeNull();
@@ -179,7 +179,7 @@ describe('First-run setup', () => {
     await press('Continue');
     expect(text()).toContain('Almost there');
     expect(text()).toContain("AI answers aren't set up yet");
-    await press('Start using InterviewPilot AI');
+    await press('Start using Orbit');
     expect(fake.settings.setup.onboardingDone).toBeTrue();
     expect(fake.settings.ai.provider).toBe('groq');
     expect(el().querySelector('.setup-banner')?.textContent).toContain('one-time setup');

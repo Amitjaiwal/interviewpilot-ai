@@ -25,7 +25,7 @@ export function createFakeApi() {
 
   const api: InterviewPilotApi = {
     getAppInfo: async () => ({
-      name: 'InterviewPilot AI',
+      name: 'Orbit',
       version: '1.2.3',
       platform: 'win32',
       electron: '33.2.1',

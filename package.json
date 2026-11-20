@@ -1,9 +1,9 @@
 {
   "name": "interviewpilot",
-  "productName": "InterviewPilot AI",
+  "productName": "Orbit",
   "version": "1.0.1",
   "description": "AI interview assistant for Windows: live transcription with whisper.cpp and answers from Groq or Ollama",
-  "author": "InterviewPilot AI",
+  "author": "Orbit",
   "main": "dist-electron/main.js",
   "private": true,
   "scripts": {
@@ -18,7 +18,7 @@
     "test:electron": "vitest run",
     "test:ui": "ng test --watch=false --browsers=ChromeHeadless",
     "test:e2e": "node tests/e2e/smoke.mjs",
-    "test:e2e:packaged": "cross-env \"E2E_APP_EXE=release/win-unpacked/InterviewPilot AI.exe\" node tests/e2e/smoke.mjs",
+    "test:e2e:packaged": "cross-env \"E2E_APP_EXE=release/win-unpacked/Orbit.exe\" node tests/e2e/smoke.mjs",
     "test:loopback": "node tests/e2e/loopback.mjs",
     "test:protection": "node tests/e2e/content-protection.mjs",
     "test:first-run": "node tests/e2e/first-run.mjs",
@@ -32,7 +32,7 @@
   },
   "build": {
     "appId": "com.interviewpilot.app",
-    "productName": "InterviewPilot AI",
+    "productName": "Orbit",
     "directories": {
       "output": "release",
       "buildResources": "build"
@@ -71,14 +71,14 @@
       "icon": "build/icon.ico"
     },
     "nsis": {
-      "artifactName": "InterviewPilot-AI-Setup-${version}.exe",
+      "artifactName": "Orbit-Setup-${version}.exe",
       "differentialPackage": false,
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "InterviewPilot AI",
+      "shortcutName": "Orbit",
       "deleteAppDataOnUninstall": false
     }
   },

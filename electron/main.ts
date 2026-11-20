@@ -26,6 +26,7 @@ import { SettingsStore } from './settings-store';
 import { ShortcutManager } from './shortcuts';
 import { TranscriptionService } from './stt/transcription-service';
 import { WhisperEngine } from './stt/whisper-engine';
+import { resolveUserDataPath } from './user-data';
 import {
   ValidationError,
   validateAiRequest,
@@ -42,9 +43,10 @@ import { WindowManager } from './window-manager';
 // variable must never be able to choose it in the installed app.
 const DEV_SERVER_URL = app.isPackaged ? undefined : process.env['ELECTRON_START_URL'];
 
-// Optional data-folder override for tests or a portable setup. Must run before 'ready'.
-const USER_DATA_OVERRIDE = process.env['INTERVIEWPILOT_USER_DATA'];
-if (USER_DATA_OVERRIDE) app.setPath('userData', path.resolve(USER_DATA_OVERRIDE));
+// The data folder keeps its original name so a renamed app finds existing settings, key and history
+// (see user-data.ts); INTERVIEWPILOT_USER_DATA overrides it for tests or a portable setup.
+// Must run before 'ready' and before the single-instance lock, which is keyed on this folder.
+app.setPath('userData', resolveUserDataPath(app.getPath('appData'), process.env['INTERVIEWPILOT_USER_DATA']));
 
 // Only one instance: a second launch just focuses the existing window.
 if (!app.requestSingleInstanceLock()) {
@@ -251,7 +253,7 @@ function registerIpc(d: Deps): void {
     });
 
   const appInfo = (): AppInfo => ({
-    name: 'InterviewPilot AI',
+    name: 'Orbit',
     version: app.getVersion(),
     platform: process.platform,
     electron: process.versions.electron,

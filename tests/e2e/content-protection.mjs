@@ -13,7 +13,7 @@ import { connect, launch, reporter, sleep, waitFor } from './harness.mjs';
 
 const WDA_NONE = 0;
 const WDA_EXCLUDEFROMCAPTURE = 0x11;
-const TITLE = 'InterviewPilot AI';
+const TITLE = 'Orbit';
 
 const { pass, fail, skip, finish } = reporter();
 if (process.platform !== 'win32') {
