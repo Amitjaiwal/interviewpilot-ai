@@ -182,6 +182,11 @@
   padding: 6px 10px;
 }
 
+// On the Live tab the pills sit inside the screen, which already has its own side padding.
+.live-status .status {
+  padding: 0;
+}
+
 .pill {
   display: inline-flex;
   align-items: center;

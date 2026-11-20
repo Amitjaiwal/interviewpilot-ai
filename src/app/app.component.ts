@@ -1,3 +1,4 @@
+import { NgTemplateOutlet } from '@angular/common';
 import { Component, HostListener, NgZone, OnDestroy, OnInit, computed, inject, signal, viewChild } from '@angular/core';
 import type { AppInfo, ShortcutAction, WindowState } from '../../shared/ipc';
 import { AiService } from './core/ai.service';
@@ -23,7 +24,7 @@ export function formatAccelerator(accelerator: string): string {
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [LiveComponent, ChatComponent, PracticeComponent, HistoryComponent, SettingsComponent, OnboardingComponent],
+  imports: [NgTemplateOutlet, LiveComponent, ChatComponent, PracticeComponent, HistoryComponent, SettingsComponent, OnboardingComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss',
 })

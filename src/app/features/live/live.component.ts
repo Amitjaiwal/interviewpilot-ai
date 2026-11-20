@@ -19,12 +19,43 @@ const TURN_END_MS = 2_500;
 const MAX_TURN_WAIT_MS = 10_000;
 import { ResponseViewComponent } from '../../shared/response-view.component';
 
+/**
+ * split: AI response on top, transcript and audio controls below, divider adjustable.
+ * ai: the AI response fills the window and the lower section is hidden (capture keeps running).
+ * transcript: the AI response shrinks to make room for the transcript.
+ */
+export type LayoutMode = 'split' | 'ai' | 'transcript';
+
+/** The height the two panels share, how much of it the AI response has, and the smallest each may have. */
+interface Measured {
+  ai: number;
+  total: number;
+  minAi: number;
+  minLower: number;
+}
+
+/**
+ * Neither panel may be dragged smaller than its minimum: a fixed size, or in a very short window
+ * a share of the height, so that both always fit. Keep these in step with live.component.scss.
+ */
+const MIN_AI_PX = 200;
+const MIN_AI_SHARE = 0.55;
+const MIN_LOWER_PX = 150;
+const MIN_LOWER_SHARE = 0.34;
+/** Share of the space the AI response gets at first, and in the "transcript" layout. */
+const DEFAULT_SPLIT = 0.6;
+const TRANSCRIPT_LAYOUT_AI_SHARE = 0.3;
+/** Arrow keys on the divider move it by this share of the space, at least MIN_KEY_STEP_PX. */
+const KEY_STEP = 0.05;
+const MIN_KEY_STEP_PX = 24;
+
 @Component({
   selector: 'app-live',
   standalone: true,
   imports: [FormsModule, ResponseViewComponent],
   templateUrl: './live.component.html',
   styleUrl: './live.component.scss',
+  host: { '[class.dragging]': 'dragging()' },
 })
 export class LiveComponent {
   readonly transcript = inject(TranscriptService);
@@ -48,6 +79,33 @@ export class LiveComponent {
     if (s.queue > 0) return `Transcribing (${s.queue})…`;
     return s.capture === 'paused' ? 'Paused' : 'Listening';
   });
+
+  // ------------------------------------------------------------ layout (view only)
+
+  readonly layout = signal<LayoutMode>('split');
+  /** The AI response's share of the space in the "split" layout. Kept when switching to another layout. */
+  readonly split = signal(DEFAULT_SPLIT);
+  readonly dragging = signal(false);
+  private readonly aiShare = computed(() => {
+    const mode = this.layout();
+    return mode === 'ai' ? 1 : mode === 'transcript' ? TRANSCRIPT_LAYOUT_AI_SHARE : this.split();
+  });
+  /** flex-grow values: only their ratio matters, so the panels keep their proportions when the window is resized. */
+  readonly aiGrow = computed(() => this.aiShare() * 100);
+  readonly lowerGrow = computed(() => (1 - this.aiShare()) * 100);
+  readonly aiShareLabel = computed(() => Math.round(this.aiShare() * 100));
+  /** Shown on the divider while the lower section is hidden, so capture is still visible at a glance. */
+  readonly collapsedHint = computed(() => {
+    const status = this.engineLabel();
+    return status ? `Transcript hidden · ${status}` : 'Transcript hidden';
+  });
+
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly answerPanel = viewChild<ElementRef<HTMLElement>>('answerPanel');
+  private readonly lowerSection = viewChild<ElementRef<HTMLElement>>('lower');
+  private drag: ({ y: number } & Measured) | null = null;
+  /** Whether the transcript was scrolled to its newest line when it last scrolled; a resize does not change that. */
+  private following = true;
 
   private lastRequest: { mode: AiMode; input: string; context: string } | null = null;
   private readonly scroller = viewChild<ElementRef<HTMLElement>>('scroller');
@@ -80,6 +138,17 @@ export class LiveComponent {
       if (!el) return;
       const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
       if (nearBottom) queueMicrotask(() => (el.scrollTop = el.scrollHeight));
+    });
+
+    // Resizing the panel (divider, layout buttons, window) must not push the newest line out of sight.
+    effect((onCleanup) => {
+      const el = this.scroller()?.nativeElement;
+      if (!el) return;
+      const observer = new ResizeObserver(() => {
+        if (this.following) el.scrollTop = el.scrollHeight;
+      });
+      observer.observe(el);
+      onCleanup(() => observer.disconnect());
     });
 
     this.transcript.finals$.pipe(takeUntilDestroyed(inject(DestroyRef))).subscribe((seg) => this.onFinal(seg));
@@ -153,6 +222,79 @@ export class LiveComponent {
   onQuestionInput(text: string): void {
     this.question.set(text);
     this.userEditAt = Date.now();
+  }
+
+  // ------------------------------------------------------------ layout
+
+  /**
+   * Switch between the three layouts. Only what is shown changes: the lower section is
+   * hidden, not destroyed, so capture, transcription and AI requests carry on unaffected.
+   */
+  setLayout(next: LayoutMode): void {
+    this.layout.set(next);
+  }
+
+  /** Remembers whether the reader is at the newest line, so a resize can keep it in view. */
+  onTranscriptScroll(): void {
+    const el = this.scroller()?.nativeElement;
+    if (el) this.following = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+  }
+
+  /** Back to the starting layout and proportions. */
+  onDividerDoubleClick(event: MouseEvent): void {
+    if ((event.target as HTMLElement).closest('button')) return;
+    this.split.set(DEFAULT_SPLIT);
+    this.setLayout('split');
+  }
+
+  onDividerDown(event: PointerEvent): void {
+    if (event.button !== 0 || (event.target as HTMLElement).closest('button')) return;
+    const measured = this.measure();
+    if (!measured) return;
+    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+    this.drag = { y: event.clientY, ...measured };
+    this.dragging.set(true);
+  }
+
+  onDividerMove(event: PointerEvent): void {
+    if (this.drag) this.place(this.drag.ai + event.clientY - this.drag.y, this.drag);
+  }
+
+  onDividerUp(): void {
+    this.drag = null;
+    this.dragging.set(false);
+  }
+
+  onDividerKey(event: KeyboardEvent): void {
+    if (event.target !== event.currentTarget || event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return;
+    const direction = event.key === 'ArrowUp' ? -1 : event.key === 'ArrowDown' ? 1 : 0;
+    if (!direction) return;
+    event.preventDefault();
+    const measured = this.measure();
+    // Nothing lies below the divider while the lower section is hidden.
+    if (!measured || (direction > 0 && this.layout() === 'ai')) return;
+    this.place(measured.ai + direction * Math.max(MIN_KEY_STEP_PX, measured.total * KEY_STEP), measured);
+  }
+
+  /** Null when the window is too short to divide at all. */
+  private measure(): Measured | null {
+    const ai = this.answerPanel()?.nativeElement.offsetHeight ?? 0;
+    // A hidden lower section is out of the layout and shares nothing.
+    const lower = this.layout() === 'ai' ? 0 : (this.lowerSection()?.nativeElement.offsetHeight ?? 0);
+    const total = ai + lower;
+    // CSS percentages refer to the host's content box, which excludes its bottom padding.
+    const host = this.host.nativeElement;
+    const height = host.clientHeight - (parseFloat(getComputedStyle(host).paddingBottom) || 0);
+    const minAi = Math.min(MIN_AI_PX, height * MIN_AI_SHARE);
+    const minLower = Math.min(MIN_LOWER_PX, height * MIN_LOWER_SHARE);
+    return total >= minAi + minLower ? { ai, total, minAi, minLower } : null;
+  }
+
+  /** Give the AI response `aiPx` of the shared height, keeping both panels at least their minimum size. */
+  private place(aiPx: number, m: Measured): void {
+    const clamped = Math.min(Math.max(aiPx, m.minAi), m.total - m.minLower);
+    this.split.set(clamped / m.total);
+    this.setLayout('split');
   }
 
   // ------------------------------------------------------------ capture
