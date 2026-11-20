@@ -1,0 +1,62 @@
+name: Release Windows installer
+
+# Pushing a version tag builds the installer and attaches it to a DRAFT GitHub Release:
+#
+#   git tag v1.0.0
+#   git push origin v1.0.0
+#
+# Nothing is public until you review the draft and press Publish.
+# The tag must match "version" in package.json.
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write # create the release and upload the installer
+
+jobs:
+  installer:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Check the tag matches package.json
+        shell: bash
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match package.json version $version"
+            exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      - run: npm ci
+
+      # Refuses any download without a published checksum, because of the CI environment variable.
+      - name: Download whisper.cpp and the speech models
+        run: npm run setup:whisper:installer
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - run: npm test
+
+      # Fails if the bundled speech engine is incomplete; see scripts/whisper-bundle.cjs.
+      - run: npm run dist
+
+      - name: Create the draft release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh release create "$GITHUB_REF_NAME"
+          "release/InterviewPilot-AI-Setup-$VERSION.exe"
+          --draft
+          --verify-tag
+          --title "InterviewPilot AI $VERSION"
+          --notes-file .github/release-notes.md

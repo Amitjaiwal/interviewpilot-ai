@@ -26,10 +26,36 @@ export interface TranscribeOptions {
 /**
  * Encoder context for a clip: 50 positions per second plus 2 s of headroom.
  * whisper always encodes 30 s (1500 positions) by default, so for typical 3-10 s
- * utterances this cuts inference time by 2-3x with the same transcript.
+ * utterances this cuts inference time by 2-3x on a CPU. Only used for models that
+ * keep their accuracy with it, see shortContextModel.
  */
 export function audioContext(seconds: number): number {
   return Math.min(1500, Math.max(320, Math.ceil((seconds + 2) * 50)));
+}
+
+/**
+ * Whether a model transcribes as well with the shortened encoder context. Measured on
+ * spoken interview questions: small.en gives the same transcripts 2.5x faster, while
+ * large-v3-turbo falls apart (most sentences come back as loops such as "it's, it's,
+ * it's") and needs only ~0.2 s with the full window on a GPU. Larger and unknown
+ * models, and external servers, always get the full 30 s window.
+ */
+export function shortContextModel(modelPath: string | undefined): boolean {
+  return !!modelPath && /^ggml-(tiny|base|small)(\.en)?(-q\d_\d)?\.bin$/i.test(path.basename(modelPath));
+}
+
+/**
+ * A path for whisper-server's command line; the server runs with `cwd` as its working
+ * directory. It reads arguments in the ANSI code page, so non-ASCII characters (a Windows
+ * user name in Hindi, an accent) arrive garbled and the model fails to load or the server
+ * crashes. Those characters are normally in the part of the path both folders share, so a
+ * relative path avoids them. ASCII paths are passed through unchanged.
+ */
+export function serverArgPath(file: string, cwd: string): string {
+  const ascii = /^[\x00-\x7f]*$/;
+  if (ascii.test(file)) return file;
+  const relative = path.relative(cwd, file);
+  return ascii.test(relative) ? relative : file;
 }
 
 const STARTUP_TIMEOUT_MS = 60_000;
@@ -89,7 +115,9 @@ export class WhisperEngine {
     // Temperature fallback re-decodes unclear audio; worth it for finals, too slow for previews.
     form.append('temperature_inc', opts.fast ? '0.0' : '0.2');
     if (!opts.fast) form.append('beam_size', '5');
-    if (opts.audioSec) form.append('audio_ctx', String(audioContext(opts.audioSec)));
+    if (opts.audioSec && shortContextModel(this.snapshot.modelPath)) {
+      form.append('audio_ctx', String(audioContext(opts.audioSec)));
+    }
     if (prompt) form.append('prompt', prompt);
     const res = await fetch(`${url}/inference`, {
       method: 'POST',
@@ -146,27 +174,28 @@ export class WhisperEngine {
       return this.fail(`Whisper model not found at ${config.modelPath}`);
     }
     if (!serverPath) {
-      return this.fail('whisper.cpp is not installed. Run "npm run setup:whisper" or set the server path in Settings.');
+      return this.fail('The speech engine is missing. Reinstall InterviewPilot AI, or set the whisper-server path in Settings. (Developers: npm run setup:whisper)');
     }
     if (!modelPath) {
-      return this.fail('No whisper model (ggml-*.bin) found. Run "npm run setup:whisper" or set the model path in Settings.');
+      return this.fail('The speech model is missing. Reinstall InterviewPilot AI, or set the model file in Settings. (Developers: npm run setup:whisper)');
     }
 
     const port = await freePort();
     const url = `http://127.0.0.1:${port}`;
     this.set({ state: 'starting', url, serverPath, modelPath });
 
-    const args = ['-m', modelPath, '--host', '127.0.0.1', '--port', String(port), '-t', String(config.threads), '-l', 'en', '-sns', '-nt'];
+    const cwd = path.dirname(serverPath);
+    const args = ['-m', serverArgPath(modelPath, cwd), '--host', '127.0.0.1', '--port', String(port), '-t', String(config.threads), '-l', 'en', '-sns', '-nt'];
     // Silero VAD: audio without speech (breathing, typing, a fan) is skipped instead of
     // transcribed, which is where whisper invents text such as an echo of the last question.
-    if (vadModelPath) args.push('--vad', '-vm', vadModelPath);
+    if (vadModelPath) args.push('--vad', '-vm', serverArgPath(vadModelPath, cwd));
     this.log.info(
       'whisper',
       `starting ${serverPath} with model ${path.basename(modelPath)}${vadModelPath ? ` and VAD ${path.basename(vadModelPath)}` : ' (no VAD model)'} on port ${port}`,
     );
 
     const stderrTail: string[] = [];
-    const proc = spawn(serverPath, args, { cwd: path.dirname(serverPath), windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'] });
+    const proc = spawn(serverPath, args, { cwd, windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'] });
     this.proc = proc;
     // stderr carries load progress and errors. Kept in memory only, for error messages.
     proc.stderr?.on('data', (d: Buffer) => {

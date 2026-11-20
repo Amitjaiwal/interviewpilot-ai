@@ -1,14 +1,16 @@
 import { randomUUID } from 'node:crypto';
-import type { AiEvent, AiRequest, AiStatus } from '../shared/ipc';
-import type { Settings } from '../shared/settings';
+import type { AiEvent, AiRequest, AiStatus, ModelPullProgress, OllamaStatus } from '../shared/ipc';
+import { RECOMMENDED_OLLAMA_MODEL, Settings } from '../shared/settings';
 import type { GroqClient } from './groq-client';
 import type { HistoryStore } from './history-store';
 import type { Logger } from './logger';
-import { OllamaChatOptions, OllamaClient, OllamaError, OllamaMessage } from './ollama-client';
+import { NO_MODEL_MESSAGE, OllamaChatOptions, OllamaClient, OllamaError, OllamaMessage, isOllamaInstalled } from './ollama-client';
 import { buildChat } from './prompts';
 
 /** Coalesce tiny token deltas into fewer IPC messages. */
 const CHUNK_FLUSH_MS = 40;
+/** Ollama reports download progress many times per second; the progress bar needs far fewer. */
+const PULL_PROGRESS_MS = 200;
 
 type Generate = (messages: OllamaMessage[], options: OllamaChatOptions, onDelta: (t: string) => void, signal: AbortSignal) => Promise<string>;
 
@@ -20,6 +22,7 @@ type Generate = (messages: OllamaMessage[], options: OllamaChatOptions, onDelta:
  */
 export class AiService {
   private readonly running = new Map<string, AbortController>();
+  private pull: AbortController | null = null;
 
   constructor(
     private readonly client: OllamaClient,
@@ -37,7 +40,13 @@ export class AiService {
     if (s.ai.provider === 'groq') {
       return { ...(await this.groq.status(this.groqKey(), s.ai.groqModel)), provider: 'groq', apiKeySet };
     }
-    return { ...(await this.client.status(s.ollama.endpoint, s.ollama.model)), provider: 'local', apiKeySet };
+    const status = await this.client.status(s.ollama.endpoint, s.ollama.model);
+    return { ...status, installed: status.reachable || isOllamaInstalled(), provider: 'local', apiKeySet };
+  }
+
+  /** Try a key against Groq without saving it. */
+  testGroqKey(key: string): Promise<OllamaStatus> {
+    return this.groq.status(key, '');
   }
 
   /** Start a request in the background and return its id immediately. */
@@ -75,6 +84,43 @@ export class AiService {
 
   cancelAll(): void {
     for (const c of this.running.values()) c.abort();
+    this.cancelPull();
+  }
+
+  /**
+   * First-run setup: download the recommended model through Ollama, then report the new
+   * status. The model is fixed here rather than chosen by the renderer. Cancelling is not
+   * an error: Ollama keeps what it downloaded and resumes from there next time.
+   */
+  async pullRecommendedModel(onProgress: (p: ModelPullProgress) => void): Promise<AiStatus> {
+    if (this.pull) throw new OllamaError('http', 'The model is already downloading.');
+    const controller = (this.pull = new AbortController());
+    let lastStatus = '';
+    let lastSent = 0;
+    try {
+      await this.client.pull(
+        this.settings().ollama.endpoint,
+        RECOMMENDED_OLLAMA_MODEL,
+        (p) => {
+          if (p.status === lastStatus && Date.now() - lastSent < PULL_PROGRESS_MS) return;
+          lastStatus = p.status;
+          lastSent = Date.now();
+          onProgress(p);
+        },
+        controller.signal,
+      );
+      this.log.info('ai', `downloaded ${RECOMMENDED_OLLAMA_MODEL}`);
+    } catch (err) {
+      if (!controller.signal.aborted) throw err;
+      this.log.info('ai', `download of ${RECOMMENDED_OLLAMA_MODEL} cancelled`);
+    } finally {
+      this.pull = null;
+    }
+    return this.status();
+  }
+
+  cancelPull(): void {
+    this.pull?.abort();
   }
 
   private async run(requestId: string, req: AiRequest, signal: AbortSignal): Promise<void> {
@@ -155,7 +201,7 @@ export class AiService {
     if (!status.reachable) throw new OllamaError('unreachable', status.error ?? 'Ollama is not reachable');
     if (status.modelMissing) throw new OllamaError('model-missing', status.error ?? 'Model not installed');
     const model = status.activeModel;
-    if (!model) throw new OllamaError('no-model', 'No Ollama model installed. Run: ollama pull qwen3:8b');
+    if (!model) throw new OllamaError('no-model', NO_MODEL_MESSAGE);
     return {
       model,
       label: model + suffix,

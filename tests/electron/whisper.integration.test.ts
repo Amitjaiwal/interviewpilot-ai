@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { copyFileSync, existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -122,6 +122,40 @@ describe.skipIf(!available)('whisper.cpp integration', () => {
     expect(finals.length).toBeGreaterThan(0);
     expect(finals.map((f) => f.text)).toEqual(finals.map(() => ''));
     await service.stop();
+  }, 90_000);
+});
+
+/**
+ * The default install folder contains the Windows user name, which may not be English.
+ * The real server is started and used from such a folder (hard links keep this instant).
+ */
+const baseModel = path.join(whisperRoot, 'models', 'ggml-base.en.bin');
+describe.skipIf(!existsSync(baseModel) || !existsSync(path.join(whisperRoot, 'bin', 'whisper-server.exe')))('whisper.cpp in a non-ASCII folder', () => {
+  const root = path.join(whisperRoot, 'test-उपयोगकर्ता José');
+  let engine: WhisperEngine;
+
+  beforeAll(() => {
+    rmSync(root, { recursive: true, force: true });
+    mkdirSync(path.join(root, 'bin'), { recursive: true });
+    mkdirSync(path.join(root, 'models'), { recursive: true });
+    const bin = path.join(whisperRoot, 'bin');
+    for (const f of readdirSync(bin).filter((n) => /\.dll$|^whisper-server\.exe$/i.test(n))) copyFileSync(path.join(bin, f), path.join(root, 'bin', f));
+    linkSync(baseModel, path.join(root, 'models', 'ggml-base.en.bin'));
+    engine = new WhisperEngine(new Logger(path.join(root, 'log.txt')), [root]);
+  });
+
+  afterAll(async () => {
+    engine.stop();
+    await new Promise((r) => setTimeout(r, 500)); // Windows releases the exe shortly after it exits
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it('starts and transcribes', async () => {
+    await engine.ensureReady({ mode: 'managed', serverPath: '', modelPath: '', externalUrl: '', threads: 4 });
+    expect(engine.status.error).toBeUndefined();
+    expect(engine.status.state).toBe('ready');
+    const wav = readFileSync(path.join('tests', 'fixtures', 'question-16k.wav'));
+    expect((await engine.transcribe(wav, '')).toLowerCase()).toContain('java');
   }, 90_000);
 });
 

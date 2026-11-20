@@ -80,7 +80,51 @@ describe('GroqClient.status', () => {
   it('reports a rejected key', async () => {
     const s = await new GroqClient(baseUrl).status('gsk_wrong_key_0123456789', '');
     expect(s.reachable).toBe(false);
+    expect(s.keyRejected).toBe(true);
     expect(s.error).toContain('rejected the API key');
+  });
+
+  it('does not blame the key when Groq has an outage', async () => {
+    const s = await new GroqClient('http://groq.test', async () => new Response('down', { status: 503 })).status(KEY, '');
+    expect(s.reachable).toBe(false);
+    expect(s.keyRejected).toBe(false);
+    expect(s.error).toContain('HTTP 503');
+  });
+
+  it('asks to check the connection when there is no internet, without blaming the key', async () => {
+    const noInternet = async () => {
+      throw new TypeError('fetch failed', { cause: new Error('getaddrinfo ENOTFOUND api.groq.com') });
+    };
+    const s = await new GroqClient('https://api.groq.com/openai/v1', noInternet).status(KEY, '');
+    expect(s.reachable).toBe(false);
+    expect(s.keyRejected).toBeUndefined();
+    expect(s.error).toContain('Check your internet connection');
+  });
+
+  it('starts on openai/gpt-oss-120b when the key can use it, whatever order Groq lists models in', async () => {
+    const lineup = async () =>
+      new Response(JSON.stringify({ data: [{ id: 'llama-3.3-70b-versatile' }, { id: 'qwen/qwen3.8-27b' }, { id: 'openai/gpt-oss-20b' }, { id: 'openai/gpt-oss-120b' }] }));
+    const client = new GroqClient('http://groq.test', lineup);
+    expect((await client.status(KEY, '')).activeModel).toBe('openai/gpt-oss-120b');
+    expect(client.pickModel('')).toBe('openai/gpt-oss-120b');
+  });
+
+  it('uses the next preferred model when openai/gpt-oss-120b is not available', async () => {
+    const lineup = async () => new Response(JSON.stringify({ data: [{ id: 'openai/gpt-oss-20b' }, { id: 'qwen/qwen3.8-27b' }] }));
+    expect((await new GroqClient('http://groq.test', lineup).status(KEY, '')).activeModel).toBe('qwen/qwen3.8-27b');
+  });
+
+  it('keeps a model the user chose, even if it is not the first preference', async () => {
+    const lineup = async () => new Response(JSON.stringify({ data: [{ id: 'openai/gpt-oss-120b' }, { id: 'qwen/qwen3.8-27b' }] }));
+    expect((await new GroqClient('http://groq.test', lineup).status(KEY, 'qwen/qwen3.8-27b')).activeModel).toBe('qwen/qwen3.8-27b');
+  });
+
+  it('falls back to any chat model the key can use when every preferred model is retired', async () => {
+    const onlyNewModels = async () => new Response(JSON.stringify({ data: [{ id: 'whisper-large-v3' }, { id: 'brand-new-model' }] }));
+    const client = new GroqClient('http://groq.test', onlyNewModels);
+    const s = await client.status(KEY, '');
+    expect(s.activeModel).toBe('brand-new-model');
+    expect(client.pickModel('')).toBe('brand-new-model');
   });
 
   it('flags a configured model Groq no longer offers', async () => {

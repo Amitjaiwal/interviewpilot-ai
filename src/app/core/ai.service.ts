@@ -1,5 +1,5 @@
-import { Injectable, inject, signal } from '@angular/core';
-import type { AiErrorCode, AiEvent, AiRequest, AiStatus } from '../../../shared/ipc';
+import { Injectable, computed, inject, signal } from '@angular/core';
+import type { AiErrorCode, AiEvent, AiRequest, AiStatus, ModelPullProgress } from '../../../shared/ipc';
 import { ElectronBridgeService } from './electron-bridge.service';
 
 export type StreamState = 'pending' | 'streaming' | 'done' | 'error' | 'cancelled';
@@ -69,9 +69,24 @@ export class AiService {
 
   readonly status = signal<AiStatus | null>(null);
   readonly checking = signal(false);
+  /** Set while the recommended model is downloading. */
+  readonly pull = signal<ModelPullProgress | null>(null);
+  readonly pullError = signal<string | null>(null);
+  /**
+   * The chosen AI cannot answer until the user does something. Groq: no key, or a rejected one.
+   * Ollama: not running, or no models. Groq merely being unreachable is not a setup problem.
+   */
+  readonly needsSetup = computed(() => {
+    const s = this.status();
+    if (!s) return false;
+    return s.provider === 'groq' ? !s.apiKeySet || !!s.keyRejected : !s.reachable || s.models.length === 0;
+  });
 
   constructor() {
     this.bridge.listen(this.bridge.api.ai.onEvent, (event) => this.dispatch(event));
+    this.bridge.listen(this.bridge.api.ai.onPullProgress, (progress) => {
+      if (this.pull()) this.pull.set(progress);
+    });
   }
 
   run(request: AiRequest): AiStream {
@@ -118,6 +133,22 @@ export class AiService {
     } finally {
       this.checking.set(false);
     }
+  }
+
+  async pullRecommendedModel(): Promise<void> {
+    this.pullError.set(null);
+    this.pull.set({ status: 'starting' });
+    try {
+      this.status.set(await this.bridge.api.ai.pullRecommendedModel());
+    } catch (err) {
+      this.pullError.set(cleanIpcError(err));
+    } finally {
+      this.pull.set(null);
+    }
+  }
+
+  cancelPull(): void {
+    this.bridge.api.ai.cancelPull();
   }
 
   private dispatch(event: AiEvent): void {

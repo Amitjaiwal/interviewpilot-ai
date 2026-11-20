@@ -182,6 +182,11 @@
   padding: 6px 10px;
 }
 
+// On the Live tab the pills sit inside the screen, which already has its own side padding.
+.live-status .status {
+  padding: 0;
+}
+
 .pill {
   display: inline-flex;
   align-items: center;
@@ -226,6 +231,31 @@
     &:hover {
       background: var(--hover);
     }
+  }
+}
+
+.setup-banner {
+  flex: none;
+  margin: 0 10px 6px;
+  padding: 5px 8px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent-soft);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+
+  strong {
+    color: var(--accent);
+  }
+  &:hover {
+    background: var(--hover);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
   }
 }
 

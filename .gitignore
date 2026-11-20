@@ -32,6 +32,13 @@ yarn-error.log
 !.vscode/extensions.json
 .history/*
 
+# Secrets: API keys and signing certificates must never be committed
+.env
+.env.*
+secrets.json
+*.pfx
+*.p12
+
 # Miscellaneous
 /.angular/cache
 .sass-cache/

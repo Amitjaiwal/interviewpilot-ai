@@ -1,0 +1,199 @@
+<div class="dots" role="img" [attr.aria-label]="'Step ' + (stepIndex() + 1) + ' of ' + steps.length">
+  @for (s of steps; track s; let i = $index) {
+    <span class="dot" [class.on]="i === stepIndex()" [class.past]="i < stepIndex()"></span>
+  }
+</div>
+
+@switch (step()) {
+  <!-- ------------------------------------------------------- Welcome -->
+  @case ('welcome') {
+    <section class="page" aria-labelledby="ob-welcome">
+      <div class="content">
+        <h1 id="ob-welcome">Welcome to InterviewPilot AI</h1>
+        <p>It turns your microphone or your PC's audio into text, right here on this PC, and suggests answers with AI.</p>
+        <p>Setting it up takes about two minutes.</p>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn ghost" (click)="finish()">Skip setup</button>
+        <span class="spacer"></span>
+        <button type="button" class="btn primary" (click)="next()">Get started</button>
+      </div>
+    </section>
+  }
+
+  <!-- ------------------------------------------------------- Provider -->
+  @case ('provider') {
+    <section class="page" aria-labelledby="ob-provider">
+      <div class="content">
+        <h2 id="ob-provider">Choose your AI</h2>
+        <p>You can change this at any time in Settings.</p>
+        <div class="choices" role="radiogroup" aria-labelledby="ob-provider">
+          <label class="choice" [class.on]="provider() === 'groq'">
+            <input type="radio" name="provider" value="groq" [checked]="provider() === 'groq'" (change)="provider.set('groq')" />
+            <span class="choice-body">
+              <span class="choice-title">Groq Cloud AI <span class="badge">Recommended</span></span>
+              <span class="choice-lead">Fast, high-quality answers over the internet.</span>
+              <ul>
+                <li>Needs an internet connection</li>
+                <li>Needs your own Groq account and API key; Groq has a free tier</li>
+                <li>Your questions, recent transcript text and resume are sent to Groq. Your audio stays on this PC</li>
+              </ul>
+            </span>
+          </label>
+          <label class="choice" [class.on]="provider() === 'local'">
+            <input type="radio" name="provider" value="local" [checked]="provider() === 'local'" (change)="provider.set('local')" />
+            <span class="choice-body">
+              <span class="choice-title">Ollama Local AI</span>
+              <span class="choice-lead">Runs entirely on this PC and works offline.</span>
+              <ul>
+                <li>Needs the free Ollama program and a 4.7 GB model download</li>
+                <li>Needs about 6 GB of free memory; slower on older PCs</li>
+              </ul>
+            </span>
+          </label>
+        </div>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn ghost" (click)="back()">Back</button>
+        <span class="spacer"></span>
+        <button type="button" class="btn primary" (click)="confirmProvider()">Continue</button>
+      </div>
+    </section>
+  }
+
+  <!-- -------------------------------------------- Connect the provider -->
+  @case ('connect') {
+    <section class="page" aria-labelledby="ob-connect">
+      <div class="content">
+        @if (provider() === 'groq') {
+          <h2 id="ob-connect">Connect to Groq</h2>
+          @if (ai.status()?.apiKeySet) {
+            @if (ai.checking()) {
+              <div class="check"><span class="spinner"></span> Testing the connection…</div>
+            } @else if (aiReady()) {
+              <div class="check ok"><span class="mark"></span> Connected to Groq. Your key works.</div>
+            } @else if (ai.status()?.keyRejected) {
+              <div class="error-box">{{ ai.status()?.error }}</div>
+            } @else {
+              <div class="warn-box">Your key is saved, but it could not be tested. {{ connectionProblem() }}</div>
+            }
+            <div class="row">
+              <button type="button" class="btn" (click)="ai.refreshStatus()" [disabled]="ai.checking()">Test again</button>
+              <button type="button" class="btn ghost" (click)="replaceKey()" [disabled]="ai.checking()">Use a different key</button>
+            </div>
+          } @else {
+            <ol class="how-to">
+              <li>
+                Open the Groq console and log in. If you're new to Groq, create a free account.
+                <div><a class="btn" href="https://console.groq.com/keys" target="_blank" rel="noopener">Open the Groq console</a></div>
+              </li>
+              <li>
+                Click <strong>Create API Key</strong> and copy the key, which starts with <code>gsk_</code>.
+                Do it straight away, as you may not be able to see it again.
+              </li>
+              <li>
+                Come back here, click this box and press <kbd>Ctrl+V</kbd>.
+                <form class="key-form" (ngSubmit)="saveKey()">
+                  <input class="input" type="password" name="groqKey" autocomplete="off" spellcheck="false" placeholder="gsk_…" aria-label="Groq API key" [(ngModel)]="keyDraft" />
+                  <button type="submit" class="btn primary" [disabled]="!keyDraft.trim() || ai.checking()">
+                    @if (ai.checking()) {
+                      <span class="spinner"></span>
+                    }
+                    Save and test
+                  </button>
+                </form>
+              </li>
+            </ol>
+            @if (keyError(); as e) {
+              <div class="error-box">{{ e }}</div>
+            }
+            <p class="note">This window stays on top. If it covers the Groq page, drag it aside by its title bar.</p>
+          }
+          <p class="note">Your key is stored encrypted on this PC and is only ever sent to Groq. Don't share it with anyone.</p>
+        } @else {
+          <h2 id="ob-connect">Set up Ollama</h2>
+          @if (aiReady()) {
+            <div class="check ok"><span class="mark"></span> Ollama is ready.</div>
+          } @else {
+            <app-ollama-setup />
+          }
+        }
+      </div>
+      <div class="actions">
+        <button type="button" class="btn ghost" (click)="back()">Back</button>
+        <span class="spacer"></span>
+        @if (aiReady() || keyUnverified()) {
+          <button type="button" class="btn primary" (click)="continueToSpeech()">Continue</button>
+        } @else {
+          <button type="button" class="btn" (click)="continueToSpeech()">Skip for now</button>
+        }
+      </div>
+    </section>
+  }
+
+  <!-- ------------------------------------------------------- Speech -->
+  @case ('speech') {
+    <section class="page" aria-labelledby="ob-speech">
+      <div class="content">
+        <h2 id="ob-speech">Check speech recognition</h2>
+        <p>Speech is turned into text on this PC. Nothing is captured until you press Start.</p>
+        @if (speechChecking()) {
+          <div class="check"><span class="spinner"></span> Starting the speech engine…</div>
+        } @else {
+          @if (speech(); as st) {
+            @if (st.engine === 'ready') {
+              <div class="check ok"><span class="mark"></span> Speech engine is ready.</div>
+            } @else {
+              <div class="error-box">{{ st.error || 'The speech engine did not start.' }}</div>
+            }
+            @if (micBlocked()) {
+              <div class="warn-box">Windows is blocking the microphone. Turn it on in Windows Settings › Privacy &amp; security › Microphone.</div>
+            } @else if (!micFound()) {
+              <div class="warn-box">No microphone found. You can still transcribe your PC's audio, or connect one later.</div>
+            } @else {
+              <div class="check ok"><span class="mark"></span> Microphone found.</div>
+            }
+            @if (st.engine !== 'ready') {
+              <div class="row">
+                <button type="button" class="btn" (click)="checkSpeech()">Try again</button>
+              </div>
+            }
+          }
+        }
+      </div>
+      <div class="actions">
+        <button type="button" class="btn ghost" (click)="back()">Back</button>
+        <span class="spacer"></span>
+        <button type="button" class="btn primary" (click)="next()" [disabled]="speechChecking()">Continue</button>
+      </div>
+    </section>
+  }
+
+  <!-- ------------------------------------------------------- Done -->
+  @case ('done') {
+    <section class="page" aria-labelledby="ob-done">
+      <div class="content">
+        <h2 id="ob-done">{{ aiReady() || keyUnverified() ? "You're all set" : 'Almost there' }}</h2>
+        @if (aiReady()) {
+          <div class="check ok"><span class="mark"></span> AI answers: {{ providerName() }} is ready.</div>
+        } @else if (keyUnverified()) {
+          <div class="check warn"><span class="mark"></span> AI answers: your Groq key is saved and will be tested once you're online.</div>
+        } @else {
+          <div class="check warn"><span class="mark"></span> AI answers aren't set up yet. Transcription still works, and you can finish this in Settings › AI model.</div>
+        }
+        @if (speech()?.engine === 'ready') {
+          <div class="check ok"><span class="mark"></span> Speech recognition is ready.</div>
+        } @else {
+          <div class="check warn"><span class="mark"></span> Speech recognition needs attention. See Settings › Speech recognition.</div>
+        }
+        <p>On the <strong>Live</strong> tab, press <strong>Start</strong> to begin.</p>
+        <p>The window stays on top and has no taskbar button. Press <kbd>{{ toggleShortcut() }}</kbd> to hide or show it.</p>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn ghost" (click)="back()">Back</button>
+        <span class="spacer"></span>
+        <button type="button" class="btn primary" (click)="finish()">Start using InterviewPilot AI</button>
+      </div>
+    </section>
+  }
+}

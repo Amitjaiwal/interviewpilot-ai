@@ -1,0 +1,182 @@
+:host {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.dots {
+  display: flex;
+  flex: none;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 0 2px;
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--border);
+
+  &.past {
+    background: rgba(106, 168, 255, 0.45);
+  }
+  &.on {
+    background: var(--accent);
+  }
+}
+
+.page {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px 16px;
+}
+
+h1 {
+  margin: 14px 0 2px;
+  font-size: 19px;
+  font-weight: 600;
+}
+
+h2 {
+  margin: 4px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+p {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.note {
+  font-size: 11px;
+}
+
+.actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border-muted);
+}
+
+.choices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.choice {
+  display: flex;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  cursor: pointer;
+
+  &:hover {
+    background: var(--hover);
+  }
+  &.on {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+  input {
+    flex: none;
+    margin: 3px 0 0;
+    accent-color: var(--accent);
+  }
+  ul {
+    margin: 4px 0 0;
+    padding-left: 15px;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+}
+
+.choice-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.choice-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.choice-lead {
+  font-size: 12px;
+}
+
+.badge {
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.how-to {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding-left: 18px;
+
+  a.btn {
+    margin-top: 5px;
+    text-decoration: none;
+  }
+}
+
+.key-form {
+  display: flex;
+  gap: 6px;
+  margin-top: 5px;
+}
+
+.check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12px;
+
+  .spinner {
+    flex: none;
+    margin-top: 3px;
+  }
+  .mark {
+    flex: none;
+    width: 8px;
+    height: 8px;
+    margin-top: 5px;
+    border-radius: 50%;
+    background: var(--text-faint);
+  }
+  &.ok .mark {
+    background: var(--live);
+  }
+  &.warn .mark {
+    background: var(--warn);
+  }
+}

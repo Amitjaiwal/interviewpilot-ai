@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, input, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { Diagnostics, ShortcutAction, ShortcutStatus, SttStatus } from '../../../../shared/ipc';
 import type { AiProvider, PositionPreset, SettingsPatch } from '../../../../shared/settings';
@@ -8,6 +8,7 @@ import { ElectronBridgeService } from '../../core/electron-bridge.service';
 import { RESUME_ACCEPT, extractResumeText } from '../../core/resume-import';
 import { SettingsService } from '../../core/settings.service';
 import { TranscriptService } from '../../core/transcript.service';
+import { OllamaSetupComponent, formatSize } from '../../shared/ollama-setup.component';
 
 const SHORTCUT_LABELS: Record<ShortcutAction, string> = {
   toggleWindow: 'Show / hide window',
@@ -43,7 +44,7 @@ export function toAccelerator(e: Pick<KeyboardEvent, 'key' | 'code' | 'ctrlKey' 
 @Component({
   selector: 'app-settings',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, OllamaSetupComponent],
   templateUrl: './settings.component.html',
   styleUrl: './settings.component.scss',
 })
@@ -66,6 +67,7 @@ export class SettingsComponent {
     { id: 'bottom-right', label: 'Bottom right' },
   ];
   readonly resumeAccept = RESUME_ACCEPT;
+  readonly formatSize = formatSize;
   readonly formatAccelerator = (a: string) => a.replace(/CommandOrControl|CmdOrCtrl/g, 'Ctrl');
 
   readonly mics = signal<{ deviceId: string; label: string }[]>([]);
@@ -97,9 +99,21 @@ export class SettingsComponent {
     }
   });
 
+  /** Guidance for local AI. Not for a remote endpoint: installing Ollama here would not help. */
+  readonly showOllamaSetup = computed(() => this.s().ai.provider === 'local' && this.ai.needsSetup() && !this.remoteEndpoint());
+
+  /** A problem to show in red. Not while the steps to set things up are on screen: those say the same, more kindly. */
+  readonly statusError = computed(() => {
+    const st = this.ai.status();
+    if (!st?.error || this.showOllamaSetup() || (st.provider === 'groq' && !st.apiKeySet)) return null;
+    return st.error;
+  });
+
   constructor() {
     effect(() => {
-      if (this.active()) void this.refresh();
+      // untracked: refresh() writes signals right away, which an effect may not do (NG0600),
+      // and only opening the tab should trigger it, not every settings change it reads.
+      if (this.active()) untracked(() => void this.refresh());
     });
   }
 
@@ -256,9 +270,5 @@ export class SettingsComponent {
     this.diagnostics.set(d);
     // No transcripts, resume text or prompts: only versions, paths and statuses.
     await this.bridge.api.copyText(JSON.stringify(d, null, 2));
-  }
-
-  formatSize(bytes: number): string {
-    return bytes > 1e9 ? `${(bytes / 1e9).toFixed(1)} GB` : `${Math.round(bytes / 1e6)} MB`;
   }
 }

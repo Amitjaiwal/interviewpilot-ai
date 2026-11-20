@@ -111,6 +111,9 @@ function createBrowserFallback(): InterviewPilotApi {
     ai: {
       status: async () => ollama,
       setApiKey: async () => ollama,
+      pullRecommendedModel: async () => ollama,
+      cancelPull: () => undefined,
+      onPullProgress: noop,
       start: async () => {
         const requestId = `browser-${++counter}`;
         setTimeout(() => {
@@ -135,6 +138,7 @@ function createBrowserFallback(): InterviewPilotApi {
       stop: async () => sttStatus,
       pushAudio: () => undefined,
       test: async () => sttStatus,
+      micAccess: async () => 'unknown',
       onEvent: noop as (listener: (event: SttEvent) => void) => () => void,
     },
     history: {

@@ -10,8 +10,8 @@
       <label class="field">
         <span>Provider</span>
         <select class="select" [ngModel]="s().ai.provider" (ngModelChange)="setProvider($event)">
+          <option value="groq">Online (Groq): recommended, fastest, free tier, needs internet</option>
           <option value="local">Local (Ollama): private, works offline</option>
-          <option value="groq">Online (Groq): fastest, free tier, needs internet</option>
         </select>
       </label>
       @if (ai.status(); as st) {
@@ -27,20 +27,25 @@
               · using <strong>{{ st.activeModel }}</strong>
             }
           } @else {
-            Not connected
+            {{ st.provider === 'groq' && !st.apiKeySet ? 'No API key yet' : 'Not connected' }}
           }
           <span class="spacer"></span>
           <button type="button" class="btn small ghost" (click)="ai.refreshStatus()" [disabled]="ai.checking()">
             {{ ai.checking() ? 'Checking…' : 'Test' }}
           </button>
         </div>
-        @if (st.error) {
-          <div class="error-box">{{ st.error }}</div>
+        @if (statusError(); as e) {
+          <div class="error-box">{{ e }}</div>
         }
+      }
+      @if (showOllamaSetup()) {
+        <app-ollama-setup>
+          <p class="hint">Older PC, or no time for the download? Choose <em>Online (Groq)</em> as the provider above instead.</p>
+        </app-ollama-setup>
       }
       @if (s().ai.provider === 'groq') {
         <div class="field">
-          <span>Groq API key <em class="faint">(free at console.groq.com → API Keys)</em></span>
+          <span>Groq API key</span>
           @if (ai.status()?.apiKeySet) {
             <div class="row nowrap">
               <span>Key saved, encrypted on this computer</span>
@@ -49,9 +54,14 @@
             </div>
           } @else {
             <div class="row nowrap">
-              <input class="input" type="password" autocomplete="off" spellcheck="false" placeholder="gsk_…" [(ngModel)]="apiKeyDraft" />
-              <button type="button" class="btn" (click)="saveApiKey()" [disabled]="!apiKeyDraft.trim() || ai.checking()">Save</button>
+              <input class="input" type="password" autocomplete="off" spellcheck="false" placeholder="gsk_…" aria-label="Groq API key" [(ngModel)]="apiKeyDraft" />
+              <button type="button" class="btn" (click)="saveApiKey()" [disabled]="!apiKeyDraft.trim() || ai.checking()">Save and test</button>
             </div>
+            <p class="hint">
+              Each person uses their own key. In the
+              <a href="https://console.groq.com/keys" target="_blank" rel="noopener">Groq console</a>, log in (a free account is enough), click
+              Create API Key, copy the key and paste it here with Ctrl+V. Don't share it with anyone.
+            </p>
           }
           @if (apiKeyError(); as e) {
             <div class="error-box">{{ e }}</div>
@@ -71,7 +81,7 @@
         </label>
         <div class="warn-box">
           Questions, recent transcript and your resume are sent to Groq to generate answers. If Groq cannot answer
-          (no internet, free-tier limit), your local model <strong>{{ s().ollama.model || 'first installed' }}</strong> answers instead.
+          (no internet, free-tier limit) and Ollama is installed, your local model answers instead.
         </div>
       } @else {
         <label class="field">
@@ -360,7 +370,7 @@
       @if (diagnostics(); as d) {
         <dl>
           <dt>Version</dt><dd>{{ d.app.version }} · Electron {{ d.app.electron }} · Chrome {{ d.app.chrome }}</dd>
-          <dt>Ollama</dt><dd>{{ d.ollama.reachable ? 'reachable (' + d.ollama.version + ')' : d.ollama.error }}</dd>
+          <dt>AI</dt><dd>{{ d.ollama.reachable ? (d.ollama.provider === 'groq' ? 'Groq: connected' : 'Ollama: reachable (' + d.ollama.version + ')') : d.ollama.error }}</dd>
           <dt>Speech</dt><dd>{{ d.stt.engine }}{{ d.stt.error ? ' – ' + d.stt.error : '' }}</dd>
           <dt>Data folder</dt><dd class="path">{{ d.userDataPath }}</dd>
           <dt>Log file</dt><dd class="path">{{ d.logPath }}</dd>

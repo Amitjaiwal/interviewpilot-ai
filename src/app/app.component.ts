@@ -1,3 +1,4 @@
+import { NgTemplateOutlet } from '@angular/common';
 import { Component, HostListener, NgZone, OnDestroy, OnInit, computed, inject, signal, viewChild } from '@angular/core';
 import type { AppInfo, ShortcutAction, WindowState } from '../../shared/ipc';
 import { AiService } from './core/ai.service';
@@ -7,6 +8,7 @@ import { TranscriptService } from './core/transcript.service';
 import { ChatComponent } from './features/chat/chat.component';
 import { HistoryComponent } from './features/history/history.component';
 import { LiveComponent } from './features/live/live.component';
+import { OnboardingComponent } from './features/onboarding/onboarding.component';
 import { PracticeComponent } from './features/practice/practice.component';
 import { SettingsComponent } from './features/settings/settings.component';
 
@@ -22,7 +24,7 @@ export function formatAccelerator(accelerator: string): string {
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [LiveComponent, ChatComponent, PracticeComponent, HistoryComponent, SettingsComponent],
+  imports: [NgTemplateOutlet, LiveComponent, ChatComponent, PracticeComponent, HistoryComponent, SettingsComponent, OnboardingComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss',
 })
@@ -47,6 +49,9 @@ export class AppComponent implements OnInit, OnDestroy {
     { id: 'settings', label: 'Settings' },
   ];
 
+  /** Nothing below the title bar is shown until settings arrive, so a new user never sees the main view flash by. */
+  readonly settingsLoaded = this.settings.loaded;
+  readonly onboarding = computed(() => !this.settings.settings().setup.onboardingDone);
   readonly capturing = computed(() => this.transcript.capture() !== 'idle');
   readonly micOn = computed(() => this.capturing() && this.transcript.activeSources().includes('mic'));
   readonly systemOn = computed(() => this.capturing() && this.transcript.activeSources().includes('system'));
@@ -56,6 +61,8 @@ export class AppComponent implements OnInit, OnDestroy {
   readonly ollamaLabel = computed(() => {
     const s = this.ai.status();
     if (!s) return 'AI: checking';
+    if (s.provider === 'groq' && !s.apiKeySet) return 'AI: no key';
+    if (s.keyRejected) return 'AI: bad key';
     if (!s.reachable) return 'AI: offline';
     if (s.modelMissing || !s.activeModel) return 'AI: no model';
     return s.provider === 'groq' ? 'AI: Groq' : `AI: ${s.activeModel}`;

@@ -5,7 +5,7 @@ import type { HistoryStore } from '../../electron/history-store';
 import type { Logger } from '../../electron/logger';
 import { OllamaClient, OllamaError } from '../../electron/ollama-client';
 import type { AiEvent } from '../../shared/ipc';
-import { DEFAULT_SETTINGS, Settings } from '../../shared/settings';
+import { DEFAULT_SETTINGS, RECOMMENDED_OLLAMA_MODEL, Settings } from '../../shared/settings';
 
 const groqSettings: Settings = { ...DEFAULT_SETTINGS, ai: { ...DEFAULT_SETTINGS.ai, provider: 'groq' } };
 
@@ -64,5 +64,63 @@ describe('AiService with Groq', () => {
     await finished();
     expect(events.filter((e) => e.type === 'start')).toHaveLength(1);
     expect(events.at(-1)).toEqual(expect.objectContaining({ type: 'error', message: 'Stream interrupted' }));
+  });
+});
+
+describe('AiService.pullRecommendedModel', () => {
+  type Pull = OllamaClient['pull'];
+
+  function pullSetup(pull: Pull) {
+    const installed = { reachable: true, endpoint: '', models: [{ name: 'qwen2.5:7b', sizeBytes: 1 }], activeModel: 'qwen2.5:7b', modelMissing: false };
+    const client = { status: async () => installed, pull } as unknown as OllamaClient;
+    const log = { info: () => undefined, warn: () => undefined } as unknown as Logger;
+    return new AiService(client, {} as GroqClient, () => '', () => DEFAULT_SETTINGS, {} as HistoryStore, log, () => undefined);
+  }
+
+  it('downloads the recommended model from the configured endpoint and returns the new status', async () => {
+    const seen: string[] = [];
+    const service = pullSetup(async (endpoint, model) => void seen.push(endpoint, model));
+    const status = await service.pullRecommendedModel(() => undefined);
+    expect(seen).toEqual([DEFAULT_SETTINGS.ollama.endpoint, RECOMMENDED_OLLAMA_MODEL]);
+    expect(status.activeModel).toBe('qwen2.5:7b');
+  });
+
+  it('forwards each new stage at once but thins out repeated progress for the same stage', async () => {
+    const service = pullSetup(async (_e, _m, onProgress) => {
+      onProgress({ status: 'pulling manifest' });
+      for (let i = 1; i <= 100; i++) onProgress({ status: 'pulling abc', completed: i, total: 100 });
+      onProgress({ status: 'success' });
+    });
+    const sent: string[] = [];
+    await service.pullRecommendedModel((p) => sent.push(p.status));
+    expect(sent).toEqual(['pulling manifest', 'pulling abc', 'success']);
+  });
+
+  it('resolves normally when cancelled, and a new download can start afterwards', async () => {
+    const service = pullSetup(
+      (_e, _m, _p, signal) =>
+        new Promise((_resolve, reject) => signal.addEventListener('abort', () => reject(new OllamaError('aborted', 'Cancelled')))),
+    );
+    const running = service.pullRecommendedModel(() => undefined);
+    service.cancelPull();
+    await expect(running).resolves.toBeDefined();
+    const again = service.pullRecommendedModel(() => undefined);
+    service.cancelAll();
+    await expect(again).resolves.toBeDefined();
+  });
+
+  it('refuses a second download while one is running', async () => {
+    const service = pullSetup((_e, _m, _p, signal) => new Promise((resolve) => signal.addEventListener('abort', () => resolve())));
+    const running = service.pullRecommendedModel(() => undefined);
+    await expect(service.pullRecommendedModel(() => undefined)).rejects.toThrow('already downloading');
+    service.cancelPull();
+    await running;
+  });
+
+  it('passes failures on to the caller', async () => {
+    const service = pullSetup(async () => {
+      throw new OllamaError('http', 'disk full');
+    });
+    await expect(service.pullRecommendedModel(() => undefined)).rejects.toThrow('disk full');
   });
 });

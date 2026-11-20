@@ -10,7 +10,9 @@ import {
   ipcMain,
   session,
   shell,
+  systemPreferences,
 } from 'electron';
+import { existsSync } from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { AppInfo, Diagnostics, IPC, ShortcutAction } from '../shared/ipc';
@@ -36,7 +38,9 @@ import {
 } from './validation';
 import { WindowManager } from './window-manager';
 
-const DEV_SERVER_URL = process.env['ELECTRON_START_URL'];
+// Development only: this page is trusted with the privileged IPC, so an environment
+// variable must never be able to choose it in the installed app.
+const DEV_SERVER_URL = app.isPackaged ? undefined : process.env['ELECTRON_START_URL'];
 
 // Optional data-folder override for tests or a portable setup. Must run before 'ready'.
 const USER_DATA_OVERRIDE = process.env['INTERVIEWPILOT_USER_DATA'];
@@ -52,14 +56,19 @@ if (!app.requestSingleInstanceLock()) {
 
 function bootstrap(): void {
   const userData = app.getPath('userData');
+  const settingsFile = path.join(userData, 'settings.json');
+  // Checked before the logger creates its folder. Every earlier version wrote a log, so this
+  // tells a new user apart from an existing one who has simply never changed a setting.
+  const newInstall = !existsSync(settingsFile) && !existsSync(path.join(userData, 'logs'));
   const log = new Logger(path.join(userData, 'logs', 'main.log'));
   log.info(
     'runtime',
     `Electron=${process.versions.electron} OS=${process.platform} OSVersion=${os.release()}`,
   );
-  const settings = new SettingsStore(path.join(userData, 'settings.json'));
-  settings.load();
-  log.info('settings', `overlay.contentProtection=${settings.get().overlay.contentProtection}`);
+  const settings = new SettingsStore(settingsFile);
+  if (newInstall) settings.startNewInstall();
+  else settings.load();
+  log.info('settings', `newInstall=${newInstall} ai.provider=${settings.get().ai.provider} overlay.contentProtection=${settings.get().overlay.contentProtection}`);
   const history = new HistoryStore(path.join(userData, 'history'));
   const removed = history.prune(settings.get().privacy.historyRetentionDays);
   if (removed) log.info('history', `pruned ${removed} old session(s)`);
@@ -83,7 +92,8 @@ function bootstrap(): void {
   const secrets = new SecretStore(path.join(userData, 'secrets.json'));
   const ai = new AiService(
     new OllamaClient(),
-    new GroqClient(),
+    // Tests only. The key goes to this URL, so the installed app must never read it from the environment.
+    new GroqClient(app.isPackaged ? undefined : process.env['INTERVIEWPILOT_GROQ_URL']),
     () => secrets.groqApiKey,
     () => settings.get(),
     history,
@@ -293,9 +303,16 @@ function registerIpc(d: Deps): void {
   handle(IPC.shortcutStatus, () => shortcuts.status);
 
   handle(IPC.ollamaStatus, () => ai.status());
-  handle(IPC.aiSetApiKey, (key) => {
-    d.secrets.setGroqApiKey(validateApiKey(key));
-    log.info('ai', d.secrets.groqApiKey ? 'groq api key saved' : 'groq api key removed');
+  handle(IPC.ollamaPull, () => ai.pullRecommendedModel((progress) => windows.send(IPC.ollamaPullProgress, progress)));
+  on(IPC.ollamaPullCancel, () => ai.cancelPull());
+  handle(IPC.aiSetApiKey, async (key) => {
+    const valid = validateApiKey(key);
+    // A key Groq refuses is not kept. One that cannot be checked right now (no internet) is.
+    if (valid && (await ai.testGroqKey(valid)).keyRejected) {
+      throw new ValidationError('Groq rejected this key. Check that you copied all of it, or create a new one at console.groq.com/keys.');
+    }
+    d.secrets.setGroqApiKey(valid);
+    log.info('ai', valid ? 'groq api key saved' : 'groq api key removed');
     return ai.status();
   });
   handle(IPC.aiStart, (req) => ai.start(validateAiRequest(req)));
@@ -315,6 +332,7 @@ function registerIpc(d: Deps): void {
   handle(IPC.sttResume, () => transcription.resume());
   handle(IPC.sttStop, () => transcription.stop());
   handle(IPC.sttTest, () => transcription.test());
+  handle(IPC.sttMicAccess, () => systemPreferences.getMediaAccessStatus('microphone'));
   on(IPC.sttAudio, (source, pcm) => {
     const s = validateSource(source);
     const samples = validatePcm(pcm);

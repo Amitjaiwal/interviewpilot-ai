@@ -1,29 +1,119 @@
+// Top to bottom: the AI response (the main panel), a divider, then everything about audio.
+// The panels share the height by flex-grow ratio (set from the component), so they keep their
+// proportions when the window is resized. Each minimum is a fixed size, or a share of the
+// height in a very short window so that both panels always fit. Keep them in step with
+// MIN_AI_PX, MIN_AI_SHARE, MIN_LOWER_PX and MIN_LOWER_SHARE in live.component.ts.
 :host {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 8px;
   height: 100%;
   min-height: 0;
   padding: 0 10px 8px;
-}
 
-.transcript {
-  flex: 1 1 40%;
-  min-height: 150px;
+  &.dragging {
+    cursor: ns-resize;
+    user-select: none;
+  }
 }
 
 .answer {
-  flex: 1 1 60%;
-  min-height: 200px;
+  flex: 1 1 0;
+  min-height: min(200px, 55%);
+  overflow: hidden;
+}
+
+.lower {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: 6px;
+  min-height: min(150px, 34%);
+
+  // Hidden, not removed: capture, transcription and the transcript keep updating underneath.
+  // It is taken out of the layout but still laid out at a normal size, so the transcript keeps
+  // its scroll position and keeps following the newest line while nobody can see it.
+  &.collapsed {
+    position: absolute;
+    right: 10px;
+    bottom: 8px;
+    left: 10px;
+    flex: none;
+    height: min(300px, 100%);
+    min-height: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+}
+
+.transcript {
+  flex: 1 1 0;
+  min-height: 0;
+  // In a very short window the controls are kept and the list is cut, rather than spilling over the footer.
+  overflow: hidden;
+}
+
+// The handle between the two panels: drag it, or use the three layout buttons.
+.divider {
+  display: grid;
+  flex: none;
+  // The grip is centred when there is room; the layout buttons are never squeezed.
+  grid-template-columns: minmax(0, 1fr) auto minmax(max-content, 1fr);
+  align-items: center;
+  gap: 8px;
+  height: 26px;
+  padding: 0 2px;
+  cursor: ns-resize;
+  touch-action: none;
+  user-select: none;
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+    border-radius: 6px;
+  }
+  &:hover .grip,
+  &:focus-visible .grip {
+    background: var(--accent);
+  }
+}
+
+.hint {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.grip {
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+  transition: background 120ms;
+}
+
+.layout-switch {
+  justify-self: end;
+  cursor: default;
+
+  button {
+    height: 20px;
+    padding: 0 8px;
+    font-size: 10.5px;
+  }
 }
 
 .engine {
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  margin-left: auto;
   font-size: 11px;
   color: var(--live);
+  white-space: nowrap;
 
   &.err {
     color: var(--danger);
@@ -34,8 +124,10 @@
   }
 }
 
+// Opens the transcript panel, so it is separated from what follows like a panel heading.
 .controls {
-  padding: 6px 10px 0;
+  padding: 6px 8px 6px 10px;
+  border-bottom: 1px solid var(--border-muted);
 }
 
 .start svg {
@@ -128,11 +220,14 @@
   min-width: 0;
 }
 
+// Sits under the answer, so the answer starts at the top of the window.
 .ask {
   display: flex;
+  flex: none;
   flex-direction: column;
   gap: 6px;
-  padding: 8px 10px 0;
+  padding: 8px 10px;
+  border-top: 1px solid var(--border-muted);
 }
 
 .err-text {
