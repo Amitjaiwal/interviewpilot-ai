@@ -20,7 +20,7 @@ export async function waitFor(fn, timeoutMs, label) {
 
 /**
  * Launch the app; extra Chromium switches go in `args`. Set E2E_APP_EXE to a
- * packaged InterviewPilot AI.exe (npm run test:e2e:packaged) to test the
+ * packaged Orbit.exe (npm run test:e2e:packaged) to test the
  * installed build instead of the project folder.
  *
  * It starts as an existing user on local AI, which is what most scripts exercise,

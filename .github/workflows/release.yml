@@ -55,8 +55,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: >-
           gh release create "$GITHUB_REF_NAME"
-          "release/InterviewPilot-AI-Setup-$VERSION.exe"
+          "release/Orbit-Setup-$VERSION.exe"
           --draft
           --verify-tag
-          --title "InterviewPilot AI $VERSION"
+          --title "Orbit $VERSION"
           --notes-file .github/release-notes.md

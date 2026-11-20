@@ -42,7 +42,7 @@ function createBrowserFallback(): InterviewPilotApi {
   let state: WindowState = { alwaysOnTop: false, focused: true };
   let settings: Settings = DEFAULT_SETTINGS;
   const info: AppInfo = {
-    name: 'InterviewPilot AI',
+    name: 'Orbit',
     version: 'browser',
     platform: 'web',
     electron: '-',

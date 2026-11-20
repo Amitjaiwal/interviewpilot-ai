@@ -1,4 +1,4 @@
-# InterviewPilot AI
+# Orbit
 
 A Windows desktop assistant for interview preparation. It transcribes your microphone and/or your PC's audio on your own machine with **whisper.cpp**, and streams explanations and suggested answers into a compact, always-on-top window, from **Groq** (online, with your own API key) or a **local Ollama model** (private, works offline). Audio never leaves your computer. With Groq, the text needed for an answer does; see [Privacy and data](#privacy-and-data).
 
@@ -12,10 +12,10 @@ Built with Electron 33, Angular 18 and TypeScript.
 
 You don't need Node.js, npm, the source code or a terminal.
 
-1. Open the [latest release](https://github.com/Amitjaiwal/interviewpilot-ai/releases/latest) and, under **Assets**, download **`InterviewPilot-AI-Setup-1.0.1.exe`** (about 610 MB). Don't use *Code › Download ZIP*: that is the source code, not the app.
+1. Open the [latest release](https://github.com/Amitjaiwal/interviewpilot-ai/releases/latest) and, under **Assets**, download the installer, **`Orbit-Setup-<version>.exe`** (about 610 MB; releases up to 1.0.1, from before the app was renamed, call it `InterviewPilot-AI-Setup-<version>.exe`). Don't use *Code › Download ZIP*: that is the source code, not the app.
 2. Double-click the file. The installer isn't code-signed yet, so Windows may say "Windows protected your PC". Click **More info**, then **Run anyway**.
 3. Follow the installer. Choosing "Only for me" needs no administrator rights.
-4. Start **InterviewPilot AI** from the Start menu or your desktop.
+4. Start **Orbit** from the Start menu or your desktop.
 
 Requires Windows 10 (version 2004 or newer) or Windows 11, 64-bit, and about 1 GB of disk space.
 
@@ -38,9 +38,9 @@ An API key is like a long password that lets the app use your own Groq account. 
 
 1. In the app's setup, click **Open the Groq console**. If you skipped the setup, go to [console.groq.com/keys](https://console.groq.com/keys) in your browser.
 2. Click **Log In**. If you're new to Groq, create a free account.
-3. Click **Create API Key**. If it asks for a name, type anything, such as `InterviewPilot`.
+3. Click **Create API Key**. If it asks for a name, type anything, such as `Orbit`.
 4. Copy the key, which starts with `gsk_`. Do it straight away, as you may not be able to see it again. If you lose it, just create a new one.
-5. Go back to InterviewPilot AI, click the key box and press `Ctrl+V`. Right-clicking won't offer Paste. The app's window stays on top, so if it covers the Groq page, drag it aside by its title bar.
+5. Go back to Orbit, click the key box and press `Ctrl+V`. Right-clicking won't offer Paste. The app's window stays on top, so if it covers the Groq page, drag it aside by its title bar.
 6. Click **Save and test**. When you see "Connected to Groq", you're done.
 
 If you skipped the setup, the same key box is in **Settings › AI model**, with *Online (Groq)* selected as the provider.
@@ -61,7 +61,7 @@ If someone else gets your key, remove it in the Groq console and create a new on
 ### Update or uninstall
 
 - **Update:** run the newer installer. Your AI provider, key, settings and history are kept, and the first-launch setup doesn't appear.
-- **Uninstall:** Windows Settings › Apps › Installed apps › InterviewPilot AI › Uninstall. Your settings and history stay in `%APPDATA%\InterviewPilot AI`. Delete that folder to remove them too.
+- **Uninstall:** Windows Settings › Apps › Installed apps › Orbit › Uninstall. Your settings and history stay in `%APPDATA%\InterviewPilot AI`. Delete that folder to remove them too.
 
 ## Requirements for development
 
@@ -103,9 +103,9 @@ Then press **Start** on the Live tab. The first time, the app explains what will
 | `npm run build:ui` | Production build of the Angular UI only, into `dist/interviewpilot/browser` |
 | `npm run build:electron` | Bundle the main process and preload only, into `dist-electron` |
 | `npm run setup:whisper:installer` | Download everything the installer bundles (`base.en` and `small.en`) |
-| `npm run dist` | Full production build, then the Windows installer `release\InterviewPilot-AI-Setup-<version>.exe` |
+| `npm run dist` | Full production build, then the Windows installer `release\Orbit-Setup-<version>.exe` |
 | `npm run dist:dir` | Full production build, then the unpacked app in `release\win-unpacked` (no installer; faster, for testing) |
-| `npm run test:e2e:packaged` | Run the end-to-end suite against `release\win-unpacked\InterviewPilot AI.exe` (after `dist` or `dist:dir`) |
+| `npm run test:e2e:packaged` | Run the end-to-end suite against `release\win-unpacked\Orbit.exe` (after `dist` or `dist:dir`) |
 | `npm run test:first-run` | Walk through the Ollama setup steps in the real app, against a fake Ollama |
 | `npm run test:onboarding` | Walk through the first-launch setup and the AI provider scenarios in the real app, against a fake Groq and the real Ollama if it is running |
 | `npm run test:auto-answer` | Check automatic answers in the real app with real speech recognition, against a fake Groq and a fake Ollama |
@@ -247,7 +247,7 @@ Uninstalling keeps `%APPDATA%\InterviewPilot AI`; delete that folder to remove a
 - Navigation away from the app and new windows are blocked; external `https` links open in your browser.
 - AI output is rendered by a small Markdown renderer that escapes all HTML (no links, images or raw HTML), and Angular sanitises it again.
 - whisper-server listens on 127.0.0.1 on a random free port and is stopped when the app quits.
-- The installed `InterviewPilot AI.exe` has Electron fuses set at packaging time (`scripts/after-pack.cjs`): `ELECTRON_RUN_AS_NODE`, `NODE_OPTIONS` and `--inspect` are ignored, and only `app.asar` is loaded. The development-only variables `ELECTRON_START_URL` and `INTERVIEWPILOT_GROQ_URL` are ignored too, so nothing in the environment can point the installed app, or your key, somewhere else.
+- The installed `Orbit.exe` has Electron fuses set at packaging time (`scripts/after-pack.cjs`): `ELECTRON_RUN_AS_NODE`, `NODE_OPTIONS` and `--inspect` are ignored, and only `app.asar` is loaded. The development-only variables `ELECTRON_START_URL` and `INTERVIEWPILOT_GROQ_URL` are ignored too, so nothing in the environment can point the installed app, or your key, somewhere else.
 
 
 
@@ -266,7 +266,7 @@ To install the app, see [Install on Windows](#install-on-windows). This section 
 
 The installed app is self-contained: it includes the Electron runtime, the compiled Angular UI, the bundled main process, and whisper.cpp (CPU build) with the Microsoft C++ runtime and the English models. It does not use this source folder, Node.js or npm, so you can move or delete the project and the app keeps working. It still needs an AI provider, which each user sets up on first launch. New installations start on Groq, where they enter their own key, and need nothing else. No API key is in the installer. Ollama and its models are not bundled either: Ollama is a separate service that keeps itself updated, and a model is 4.7 GB (NSIS's limit is 2 GB). The app walks anyone who chooses it through installing them.
 
-Settings, history, logs and the Groq key live in `%APPDATA%\InterviewPilot AI`, the same folder the development build uses. Installing, updating or uninstalling never touches it.
+Settings, history, logs and the Groq key live in `%APPDATA%\InterviewPilot AI`, the same folder the development build uses. Installing, updating or uninstalling never touches it. The folder keeps the app's original name on purpose: renaming the app (it is now Orbit) must not move your data, and Electron would otherwise look in a folder named after the new name.
 
 ### Faster speech recognition in the installed app
 
@@ -296,7 +296,7 @@ Packaging is configured in the `build` section of `package.json` (electron-build
 - `files` ships only the compiled UI, the bundled main/preload (without source maps) and `package.json`. Sources, tests, scripts and `node_modules` are excluded.
 - `extraResources` copies `whisper-server.exe`, its DLLs, `base.en`, `small.en` and the Silero VAD model from `tools/whisper` into `resources\whisper`.
 - `afterPack` runs `scripts/after-pack.cjs`. It copies the Microsoft C++ runtime (`msvcp140`, `vcruntime140`, `vcruntime140_1`, `vcomp140`) from the build machine's System32 next to `whisper-server.exe`, because a clean Windows may not have it and the whisper.cpp release doesn't include it. It then **fails the build** if a required file is missing or any bundled binary imports a DLL that neither Windows nor the bundle provides (`scripts/whisper-bundle.cjs`). Finally it sets the Electron fuses on the packaged exe.
-- `nsis` makes the per-user, assisted installer named `InterviewPilot-AI-Setup-<version>.exe`, with desktop and Start menu shortcuts.
+- `nsis` makes the per-user, assisted installer named `Orbit-Setup-<version>.exe`, with desktop and Start menu shortcuts.
 - `publish` is `null` because there is no auto-updater: users update by running a newer installer, and releases are created as described below.
 - `win.icon` is `build/icon.ico` (`npm run icon` regenerates it).
 
@@ -309,14 +309,14 @@ Packaging is configured in the `build` section of `package.json` (electron-build
 
    ```powershell
    npm run setup:whisper:installer   # once: downloads what the installer bundles
-   npm run dist                      # -> release\InterviewPilot-AI-Setup-<version>.exe (~610 MB)
+   npm run dist                      # -> release\Orbit-Setup-<version>.exe (~610 MB)
    npm run test:e2e:packaged         # optional: end-to-end suite against the packaged exe
    npm run test:first-run            # optional, with E2E_APP_EXE set to the packaged exe
    ```
 
 5. Run the new installer. It replaces the installed version in place and keeps your settings and history.
 
-For a quick check without installing, `npm run dist:dir` and start `release\win-unpacked\InterviewPilot AI.exe`.
+For a quick check without installing, `npm run dist:dir` and start `release\win-unpacked\Orbit.exe`.
 
 The installer is not code-signed. To sign it, set `CSC_LINK` (path to a `.pfx`) and `CSC_KEY_PASSWORD` before `npm run dist`. Never commit the certificate or the password.
 
@@ -334,7 +334,7 @@ git push origin v1.0.1
 
 Wait for the run on the repository's **Actions** tab (about 15 minutes), then open **Releases**, check the draft and press **Publish release**.
 
-**By hand.** Build with `npm run dist`, then on GitHub choose **Releases › Draft a new release**, create the tag `v1.0.1` on the `installer-1.0` branch, paste `.github/release-notes.md` as the description, attach `release\InterviewPilot-AI-Setup-1.0.1.exe` and publish. GitHub allows up to 2 GB per file.
+**By hand.** Build with `npm run dist`, then on GitHub choose **Releases › Draft a new release**, create the tag `v1.0.1` on the `installer-1.0` branch, paste `.github/release-notes.md` as the description, attach `release\Orbit-Setup-1.0.1.exe` and publish. GitHub allows up to 2 GB per file.
 
 ### Checking an installer before you publish it
 
@@ -366,7 +366,7 @@ The development PC hides problems, because it has Node.js, the C++ runtime and o
 | Windows blocks the installer and offers no **Run anyway** | Smart App Control is probably on (Windows Security › App & browser control); it can block unsigned apps outright. Turning it off may not be reversible without resetting Windows, so decide carefully. Code-signing the installer is the real fix. |
 | The installed app does not open (nothing happens) | Another copy is already running, either the installed one (hidden: press `Ctrl+Shift+Space`) or the development one (`npm start` / `npm run dev`). Both share `%APPDATA%\InterviewPilot AI`, so only one runs at a time. Close the other, or check Task Manager. |
 | Installed app transcribes more slowly than `npm start` | The installer bundles only the CPU build of whisper.cpp. Copy the GPU build into `%APPDATA%` as described in [Faster speech recognition in the installed app](#faster-speech-recognition-in-the-installed-app). |
-| `npm run dist` fails with "EBUSY" or "Access is denied" on `release\win-unpacked` | The previous packaged build is still running. Close it (Task Manager › InterviewPilot AI) and run the command again. |
+| `npm run dist` fails with "EBUSY" or "Access is denied" on `release\win-unpacked` | The previous packaged build is still running. Close it (Task Manager › Orbit) and run the command again. |
 | `npm start` builds but no window appears and Electron prints a Node version | `ELECTRON_RUN_AS_NODE=1` is set (common in VS Code terminals). Launch with `npm start` / `npm run dev`; `scripts/run-electron.mjs` clears it. |
 | "The speech engine is missing" or "The speech model is missing" | In the installed app, reinstall it. In development, run `npm run setup:whisper`. Or set the server and model paths in Settings › Speech recognition, then **Test speech engine**. |
 | `npm run dist` fails with "The installer would have no working speech engine" | Run `npm run setup:whisper:installer`, then build again. |

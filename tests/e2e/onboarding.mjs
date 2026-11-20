@@ -131,8 +131,8 @@ function ui(cdp) {
       await self.waitText('app-onboarding', 'Check speech recognition');
       await waitFor(() => evaluate(`!document.querySelector('app-onboarding .spinner')`), 90_000, 'the speech check');
       await self.press('Continue', 'app-onboarding .actions button');
-      await self.waitText('app-onboarding', 'Start using InterviewPilot AI');
-      await self.press('Start using InterviewPilot AI', 'app-onboarding button');
+      await self.waitText('app-onboarding', 'Start using Orbit');
+      await self.press('Start using Orbit', 'app-onboarding button');
       await waitFor(() => evaluate(`!!document.querySelector('.tabs')`), 5000, 'the main view');
     },
   };
@@ -192,7 +192,7 @@ removeData(
   await scenario('fresh install without a key', {}, async (u, app) => {
     check(await u.has('app-onboarding'), 'a new installation opens the first-run setup');
     check(!(await u.has('.tabs')), 'the main view stays hidden during setup');
-    await u.waitText('app-onboarding', 'Welcome to InterviewPilot AI');
+    await u.waitText('app-onboarding', 'Welcome to Orbit');
     const saved = JSON.parse(readFileSync(join(app.userData, 'settings.json'), 'utf8'));
     check(saved.ai.provider === 'groq' && saved.setup.onboardingDone === false, 'a new installation starts on Groq, saved to disk at once', JSON.stringify(saved.ai));
     check(!/ollama/i.test(await u.text('app-onboarding')), 'the welcome step does not ask for Ollama');
@@ -288,7 +288,7 @@ if (PACKAGED) {
     await u.waitText('app-onboarding', "You're all set");
     check((await u.text('app-onboarding')).includes('Groq Cloud AI is ready'), 'the last step confirms Groq is ready');
     await u.shot('9-done');
-    await u.press('Start using InterviewPilot AI', 'app-onboarding button');
+    await u.press('Start using Orbit', 'app-onboarding button');
     await waitFor(() => u.has('.tabs'), 5000, 'the main view');
     check(!(await u.has('.setup-banner')), 'no setup banner once connected');
     await u.waitText('.pill.as-btn', 'AI: Groq');
