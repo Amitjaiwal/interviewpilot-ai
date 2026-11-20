@@ -328,8 +328,8 @@ The repository must be **public** for people to download from its Releases page:
 
 ```powershell
 git push origin installer-1.0
-git tag v1.0.1            # must match "version" in package.json
-git push origin v1.0.1
+git tag v1.0.2            # must match "version" in package.json
+git push origin v1.0.2
 ```
 
 Wait for the run on the repository's **Actions** tab (about 15 minutes), then open **Releases**, check the draft and press **Publish release**.

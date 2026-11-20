@@ -1,7 +1,7 @@
 {
   "name": "interviewpilot",
   "productName": "Orbit",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "AI interview assistant for Windows: live transcription with whisper.cpp and answers from Groq or Ollama",
   "author": "Orbit",
   "main": "dist-electron/main.js",

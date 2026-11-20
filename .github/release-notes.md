@@ -1,7 +1,8 @@
-## What's new in 1.0.1
+## What's new in 1.0.2
 
-- Answers now start automatically: when a question is detected in the transcript, the answer appears without a click. To turn this off, untick *Answer automatically when a question is detected in the transcript* in Settings › AI model. It stays off until you tick it again.
-- **Updating from 1.0.0?** Your settings are kept, including this box, which 1.0.0 left unticked. Tick it once in Settings › AI model.
+- **The app is now called Orbit** (it was InterviewPilot AI). Your settings, saved Groq key and history are kept: they stay in the same folder, `%APPDATA%\InterviewPilot AI`. After installing, if Windows Settings › Apps still lists the old InterviewPilot AI, uninstall that entry. Your data is kept.
+- **The AI response is now at the top of the Live tab**, so you can read answers with your eyes near the camera. Drag the bar under it to resize, or use **AI only**, **Split** and **Transcript** to switch layouts. Capture and the transcript keep running in every layout.
+- Since 1.0.0, answers start automatically: when a question is detected in the transcript, the answer appears without a click. To turn this off, untick *Answer automatically when a question is detected in the transcript* in Settings › AI model. It stays off until you tick it again. **Updating from 1.0.0?** Your settings are kept, including this box, which 1.0.0 left unticked. Tick it once in Settings › AI model.
 
 ## Install
 
